@@ -12,7 +12,7 @@ import os
 Base.metadata.create_all(bind=engine)
 
 TOKEN = os.environ['BOT_TOKEN']
-WEBHOOK_URL = "https://your-railway-app.railway.app/"  # Set after deploy
+WEBHOOK_URL = os.environ['WEBHOOK_URL'] 
 
 ptb = Application.builder().token(TOKEN).read_timeout(7).get_updates_read_timeout(42).build()
 
