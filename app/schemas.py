@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -38,15 +38,6 @@ class TransactionOut(TransactionCreate):
     id: int
     contract_hash: str
     created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-class LinkOut(BaseModel):
-    id: int
-    category: str
-    label: str
-    url: str
 
     class Config:
         from_attributes = True

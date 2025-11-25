@@ -2,12 +2,15 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Depends
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 from telegram import Update
 from telegram.ext import Application
 
-from app.database import Base, engine
+from app.database import Base, engine, get_db
 from app.bot import setup_handlers
+from app import crud, schemas
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -15,7 +18,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create DB tables on startup
+# Ensure DB schema exists
 Base.metadata.create_all(bind=engine)
 
 TOKEN = os.environ["BOT_TOKEN"]
@@ -42,6 +45,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Serve the investor one-pager from /docs
+app.mount("/docs", StaticFiles(directory="docs", html=True), name="docs")
+
 @app.post(f"/{TOKEN}")
 async def telegram_webhook(request: Request):
     data = await request.json()
@@ -52,3 +58,8 @@ async def telegram_webhook(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "PROMO investors bot"}
+
+@app.get("/api/stats", response_model=schemas.StatsOut)
+def api_stats(db: Session = Depends(get_db)):
+    """Public stats endpoint – can be used by dashboards / landing page."""
+    return crud.get_stats(db)

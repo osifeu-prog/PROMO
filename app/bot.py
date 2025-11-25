@@ -1,7 +1,6 @@
 import logging
 import os
 from enum import Enum
-from typing import Optional
 
 from telegram import (
     Update,
@@ -27,6 +26,8 @@ logger = logging.getLogger(__name__)
 ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", "0"))
 PAYMENT_GROUP_ID = int(os.environ.get("PAYMENT_GROUP_ID", "0"))
 COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", "0"))
+
+DOCS_URL = os.environ.get("DOCS_URL", "https://web-production-112f6.up.railway.app/docs")
 
 class Callback(str, Enum):
     ABOUT = "about"
@@ -105,6 +106,9 @@ async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         db.close()
 
+class CallbackData(str, Enum):
+    pass  # kept for backward compatibility if needed
+
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -119,7 +123,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• קהילות עסקיות ויזמים\n"
             "• פלטפורמת תוכן והכשרות חכמה\n"
             "• אקו-סיסטם של בוטים, ארנקים, NFT ו-DeFi\n\n"
-            "הבוט הזה הוא שער לכניסה כמשקיע גדול – עם מבט גבוה על כל המערכת."
+            "הבוט הזה הוא שער לכניסה כמשקיע גדול – עם מבט גבוה על כל המערכת.\n\n"
+            f"לקבלת תמונת מאקרו מלאה, אפשר לקרוא את מסמך המשקיעים שלנו כאן:\n{DOCS_URL}"
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
     elif data == Callback.MODEL:
@@ -128,7 +133,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• גיוס מטרה: <b>10M ₪</b> בסבב משקיעים סגור.\n"
             "• שימוש בכסף: הרחבת התשתיות, פיתוח בוטים, תוכן, אקדמיה ופלטפורמת SLH Exchange.\n"
             "• שקיפות מלאה בגיבוי DB ו-Contracts חכמים (Hash) לכל משקיע.\n\n"
-            "ניתן להציג בזמן אמת סטטיסטיקות וצמיחה (דרך פאנל האדמין)."
+            "ניתן להציג בזמן אמת סטטיסטיקות וצמיחה (דרך פאנל האדמין וה-API הפנימי)."
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
     elif data == Callback.PORTFOLIO:
@@ -145,7 +150,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "📞 <b>יצירת קשר ישיר</b>\n\n"
             "צוות SLH זמין עבורך דרך קבוצת המשקיעים והקהילה.\n"
-            "הבוט יקשר אותך לקבוצות ולדיון פרטני לאחר שנקבל את פרטי ההשקעה שלך."
+            "הבוט יקשר אותך לקבוצות ולדיון פרטני לאחר שנקבל את פרטי ההשקעה שלך.\n\n"
+            "הקבוצות עצמן מנוהלות על גבי תשתית השרתים שלנו (Railway + Postgres) כדי להבטיח סדר ושקיפות."
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
     elif data == Callback.ADMIN_PANEL:
@@ -164,7 +170,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"סה"כ משקיעים במערכת: <b>{stats.total_users}</b>\n"
             f"מספר עסקאות מתועדות: <b>{stats.total_transactions}</b>\n"
             f"סכום מצטבר (לפי DB): <b>{stats.total_amount_usd:.2f} USD</b>\n\n"
-            "ניתן להרחיב את הפאנל הזה לעוד מדדים ודוחות."
+            "ניתן להרחיב את הפאנל הזה לעוד מדדים ודוחות, או לחבר אותו ישירות ללוח מחוונים חיצוני."
         )
         keyboard = [
             [InlineKeyboardButton("רענון נתונים", callback_data=Callback.ADMIN_STATS)]
