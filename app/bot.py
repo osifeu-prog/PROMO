@@ -1,3 +1,4 @@
+from app.schemas import UserCreate, PortfolioCreate  # הוסף את זה, ואם צריך עוד סכמות
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from sqlalchemy.orm import Session
