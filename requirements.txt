@@ -1,4 +1,4 @@
-python-telegram-bot[webhook]==20.7
+python-telegram-bot[webhooks]==20.7
 fastapi==0.104.1
 uvicorn==0.24.0.post1
 gunicorn==21.2.0
