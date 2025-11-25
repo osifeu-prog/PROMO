@@ -1,0 +1,7 @@
+body { font-family: Arial, sans-serif; background: #f8f9fa; }
+.hero { background: url('https://cdn.prod.website-files.com/634054c00f602044abb3060d/6883d0732622eb9b834b5a27_AI%20Crypto%20Coins%20in%202025%20%E2%80%94%20Top%20Tokens%2C%20Use%20Cases%2C%20and%20Investment%20Strategies.png') no-repeat center/cover; color: white; padding: 150px 0; }
+.hero h1 { font-size: 3rem; animation: fadeIn 2s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+section h2 { text-align: center; margin-bottom: 30px; }
+.btn { transition: transform 0.3s; }
+.btn:hover { transform: scale(1.05); }
