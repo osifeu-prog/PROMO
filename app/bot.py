@@ -166,7 +166,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text = (
             "🔐 <b>פאנל אדמין – SLH Investors</b>\n\n"
-            f"סה"כ משקיעים במערכת: <b>{stats.total_users}</b>\n"
+            f"סה\"כ משקיעים במערכת: <b>{stats.total_users}</b>\n"
             f"מספר עסקאות מתועדות: <b>{stats.total_transactions}</b>\n"
             f"סכום מצטבר (לפי DB): <b>{stats.total_amount_usd:.2f} USD</b>\n\n"
             "ניתן להרחיב את הפאנל הזה לעוד מדדים ודוחות, או לחבר אותו ישירות ללוח מחוונים חיצוני."
