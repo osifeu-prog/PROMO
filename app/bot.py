@@ -29,6 +29,7 @@ COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", "0"))
 
 DOCS_URL = os.environ.get("DOCS_URL", "https://web-production-112f6.up.railway.app/docs")
 
+
 class Callback(str, Enum):
     ABOUT = "about"
     MODEL = "model"
@@ -37,7 +38,6 @@ class Callback(str, Enum):
     ADMIN_PANEL = "admin_panel"
     ADMIN_STATS = "admin_stats"
 
-# --- Helpers ---
 
 def _get_or_create_user(db: Session, update: Update) -> User:
     tg_user = update.effective_user
@@ -51,6 +51,7 @@ def _get_or_create_user(db: Session, update: Update) -> User:
             is_admin=(tg_user.id == ADMIN_USER_ID),
         )
     return user
+
 
 async def _reply_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -84,7 +85,6 @@ async def _reply_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
-# --- Handlers ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db: Session = next(get_db())
@@ -93,6 +93,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         db.close()
     await _reply_main_menu(update, context)
+
 
 async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db: Session = next(get_db())
@@ -106,8 +107,6 @@ async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         db.close()
 
-class CallbackData(str, Enum):
-    pass  # kept for backward compatibility if needed
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -199,6 +198,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await query.edit_message_text(text, parse_mode="HTML")
 
+
 async def portfolio_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """כל הודעה פרטית שלא פקודה – נשמרת כפורטפוליו/התעניינות."""
     if update.effective_chat.type not in ("private",):
@@ -222,6 +222,7 @@ async def portfolio_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "אחד מחברי הצוות יחזור אליך מתוך קבוצת המשקיעים / בשיחה פרטית."
     )
 
+
 async def payment_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """מאזין לקבוצת התשלום/אימות (לפי PAYMENT_GROUP_ID) ומתייג אדמין."""
     if update.effective_chat.id != PAYMENT_GROUP_ID:
@@ -238,6 +239,7 @@ async def payment_group_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ),
         parse_mode="HTML",
     )
+
 
 def setup_handlers(app: Application):
     app.add_handler(CommandHandler("start", start))

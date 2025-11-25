@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -16,6 +17,7 @@ class User(Base):
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
 
+
 class Portfolio(Base):
     __tablename__ = "portfolios"
 
@@ -27,6 +29,7 @@ class Portfolio(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="portfolios")
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -40,6 +43,7 @@ class Transaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="transactions")
+
 
 class Link(Base):
     __tablename__ = "links"

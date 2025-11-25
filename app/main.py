@@ -27,6 +27,7 @@ WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g. https://web-production-xxxx.up.r
 ptb_app: Application = Application.builder().token(TOKEN).build()
 setup_handlers(ptb_app)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -43,10 +44,12 @@ async def lifespan(app: FastAPI):
     await ptb_app.shutdown()
     logger.info("Telegram application stopped.")
 
+
 app = FastAPI(lifespan=lifespan)
 
 # Serve the investor one-pager from /docs
 app.mount("/docs", StaticFiles(directory="docs", html=True), name="docs")
+
 
 @app.post(f"/{TOKEN}")
 async def telegram_webhook(request: Request):
@@ -55,9 +58,11 @@ async def telegram_webhook(request: Request):
     await ptb_app.process_update(update)
     return Response(status_code=200)
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "PROMO investors bot"}
+
 
 @app.get("/api/stats", response_model=schemas.StatsOut)
 def api_stats(db: Session = Depends(get_db)):

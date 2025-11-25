@@ -3,8 +3,10 @@ from sqlalchemy import func
 from app import models, schemas
 from app.utils import generate_contract_hash
 
+
 def get_user_by_telegram_id(db: Session, telegram_id: int):
     return db.query(models.User).filter(models.User.telegram_id == telegram_id).first()
+
 
 def create_user(db: Session, user: schemas.UserCreate, is_admin: bool = False):
     db_user = models.User(
@@ -17,12 +19,14 @@ def create_user(db: Session, user: schemas.UserCreate, is_admin: bool = False):
     db.refresh(db_user)
     return db_user
 
+
 def make_admin(db: Session, user: models.User):
     user.is_admin = True
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
+
 
 def create_portfolio(db: Session, user_id: int, portfolio: schemas.PortfolioCreate):
     db_portfolio = models.Portfolio(
@@ -35,6 +39,7 @@ def create_portfolio(db: Session, user_id: int, portfolio: schemas.PortfolioCrea
     db.commit()
     db.refresh(db_portfolio)
     return db_portfolio
+
 
 def create_transaction(db: Session, user_id: int, tx: schemas.TransactionCreate):
     contract_hash = generate_contract_hash(tx.details)
@@ -49,6 +54,7 @@ def create_transaction(db: Session, user_id: int, tx: schemas.TransactionCreate)
     db.commit()
     db.refresh(db_tx)
     return db_tx
+
 
 def get_stats(db: Session) -> schemas.StatsOut:
     total_users = db.query(func.count(models.User.id)).scalar() or 0
