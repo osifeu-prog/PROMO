@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 TOKEN = os.environ["BOT_TOKEN"]
-WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g. https://web-production-xxxx.up.railway.app
+WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g. https://web-production-112f6.up.railway.app
 
 ptb_app: Application = Application.builder().token(TOKEN).build()
 setup_handlers(ptb_app)
