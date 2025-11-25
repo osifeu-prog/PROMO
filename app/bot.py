@@ -27,7 +27,14 @@ ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", "0"))
 PAYMENT_GROUP_ID = int(os.environ.get("PAYMENT_GROUP_ID", "0"))
 COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", "0"))
 
-DOCS_URL = os.environ.get("DOCS_URL", "https://web-production-112f6.up.railway.app/docs")
+DOCS_URL = os.environ.get(
+    "DOCS_URL",
+    "https://web-production-112f6.up.railway.app/investors",
+)
+GITHUB_URL = os.environ.get(
+    "GITHUB_URL",
+    "https://github.com/osifeu-prog/PROMO",
+)
 
 
 class Callback(str, Enum):
@@ -54,7 +61,7 @@ def _get_or_create_user(db: Session, update: Update) -> User:
 
 
 async def _reply_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
+    callback_rows = [
         [
             InlineKeyboardButton("מה זו האימפריה של SLH?", callback_data=Callback.ABOUT),
         ],
@@ -68,16 +75,24 @@ async def _reply_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("דברו איתנו ישירות", callback_data=Callback.CONTACT),
         ],
     ]
+
+    url_row = [
+        InlineKeyboardButton("🌐 דף המשקיעים", url=DOCS_URL),
+        InlineKeyboardButton("💻 קוד המערכת (GitHub)", url=GITHUB_URL),
+    ]
+
     if update.effective_user and update.effective_user.id == ADMIN_USER_ID:
-        keyboard.append(
+        callback_rows.append(
             [InlineKeyboardButton("🔐 פאנל אדמין", callback_data=Callback.ADMIN_PANEL)]
         )
+
+    keyboard = callback_rows + [url_row]
 
     text = (
         "ברוך הבא לבוט המשקיעים של <b>SLH / SELA</b> 👋\n\n"
         "כאן מרוכז כל <b>התוכן</b>, המידע והחיבורים למשקיעים גדולים שרוצים להיכנס "
         "ללב האקו-סיסטם הכלכלי שלנו.\n\n"
-        "בחר אחת מהאפשרויות בתפריט:"
+        "בחר אחת מהאפשרויות בתפריט או פתח את דף המשקיעים לצפייה מלאה במודל."
     )
     await update.effective_chat.send_message(
         text,
@@ -126,15 +141,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"לקבלת תמונת מאקרו מלאה, אפשר לקרוא את מסמך המשקיעים שלנו כאן:\n{DOCS_URL}"
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
+
     elif data == Callback.MODEL:
         text = (
             "📈 <b>מודל ההשקעה</b>\n\n"
             "• גיוס מטרה: <b>10M ₪</b> בסבב משקיעים סגור.\n"
             "• שימוש בכסף: הרחבת התשתיות, פיתוח בוטים, תוכן, אקדמיה ופלטפורמת SLH Exchange.\n"
-            "• שקיפות מלאה בגיבוי DB ו-Contracts חכמים (Hash) לכל משקיע.\n\n"
+            "• שקיפות מלאה בגיבוי DB ו-Contracts חכמים לכל משקיע.\n\n"
             "ניתן להציג בזמן אמת סטטיסטיקות וצמיחה (דרך פאנל האדמין וה-API הפנימי)."
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
+
     elif data == Callback.PORTFOLIO:
         text = (
             "🧩 <b>שליחת פרטי משקיע</b>\n\n"
@@ -145,6 +162,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "אנחנו ניצור עבורך כרטיס משקיע במערכת ונחזור אליך מתוך הקבוצה הסגורה."
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
+
     elif data == Callback.CONTACT:
         text = (
             "📞 <b>יצירת קשר ישיר</b>\n\n"
@@ -153,6 +171,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "הקבוצות עצמן מנוהלות על גבי תשתית השרתים שלנו (Railway + Postgres) כדי להבטיח סדר ושקיפות."
         )
         await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
+
     elif data == Callback.ADMIN_PANEL:
         if query.from_user.id != ADMIN_USER_ID:
             await query.answer("אין לך הרשאות לאדמין.", show_alert=True)
@@ -179,6 +198,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
+
     elif data == Callback.ADMIN_STATS:
         if query.from_user.id != ADMIN_USER_ID:
             await query.answer("אין לך הרשאות לאדמין.", show_alert=True)
@@ -200,7 +220,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def portfolio_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """כל הודעה פרטית שלא פקודה – נשמרת כפורטפוליו/התעניינות."""
     if update.effective_chat.type not in ("private",):
         return
 
@@ -224,12 +243,13 @@ async def portfolio_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def payment_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """מאזין לקבוצת התשלום/אימות (לפי PAYMENT_GROUP_ID) ומתייג אדמין."""
     if update.effective_chat.id != PAYMENT_GROUP_ID:
         return
 
     msg = update.effective_message
-    admin_mention = f"<a href='tg://user?id={ADMIN_USER_ID}'>אדמין</a>" if ADMIN_USER_ID else "אדמין"
+    admin_mention = (
+        f"<a href='tg://user?id={ADMIN_USER_ID}'>אדמין</a>" if ADMIN_USER_ID else "אדמין"
+    )
     await context.bot.send_message(
         chat_id=COMMUNITY_GROUP_ID if COMMUNITY_GROUP_ID else update.effective_chat.id,
         text=(
@@ -246,11 +266,7 @@ def setup_handlers(app: Application):
     app.add_handler(CommandHandler("whoami", whoami))
 
     app.add_handler(CallbackQueryHandler(button))
-
-    # הודעות פרטיות – פורטפוליו / התעניינות
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, portfolio_message))
-
-    # הודעות בקבוצת תשלומים
     app.add_handler(MessageHandler(filters.ChatType.GROUPS, payment_group_handler))
 
     return app
