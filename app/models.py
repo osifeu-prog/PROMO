@@ -48,7 +48,7 @@ class Transaction(Base):
 class Link(Base):
     __tablename__ = "links"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key, index=True)
     category = Column(String, index=True)
     label = Column(String)
     url = Column(String)
