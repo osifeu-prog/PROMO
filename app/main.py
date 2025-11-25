@@ -39,6 +39,6 @@ async def webhook(request: Request):
     return Response(status_code=200)
 
 # Optional: Health check
-@app.get("/")
-async def health():
+@app.get("/health")
+async def health_check():
     return {"status": "ok"}
