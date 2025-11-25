@@ -1,4 +1,3 @@
-from app.schemas import UserCreate, PortfolioCreate  # הוסף את זה, ואם צריך עוד סכמות
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from sqlalchemy.orm import Session
@@ -6,6 +5,7 @@ from app.database import get_db
 from app.crud import get_user_by_telegram_id, create_user, make_admin, create_portfolio, create_transaction
 from app.utils import verify_password
 from app.models import Link
+from app.schemas import UserCreate, PortfolioCreate  # Import schemas here
 import os
 
 ADMIN_USER_ID = int(os.environ['ADMIN_USER_ID'])
@@ -51,10 +51,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session 
     if not user:
         user = create_user(db, UserCreate(telegram_id=user_id, username=update.effective_user.username))
     if user_id == ADMIN_USER_ID and not user.is_admin:
-        make_admin(db, user_id, "initial_password")  # Change immediately
+        make_admin(db, user_id, "admin123")  # Change immediately
 
-    # Send to community group
-    await context.bot.send_message(COMMUNITY_GROUP_ID, f"משתמש חדש: @{user.username}")
+    # Send to community group (commented temporarily until group ID fixed)
+    # await context.bot.send_message(COMMUNITY_GROUP_ID, f"משתמש חדש: @{user.username}")
 
     keyboard = [
         [InlineKeyboardButton("אודותינו", callback_data="about")],
@@ -124,7 +124,7 @@ async def admin_login(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Se
             if user.active_sessions < 2:
                 user.active_sessions += 1
                 db.commit()
-                await update.message.reply_text("התחברת כアדמין.")
+                await update.message.reply_text("התחברת כאדמין.")
             else:
                 await update.message.reply_text("מגבלת 2 מכשירים. בקש אישור ליותר.")
         else:
