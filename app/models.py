@@ -19,7 +19,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    # חשוב: BigInteger כדי לתמוך ב-Telegram IDs ארוכים
+    # שימוש ב-BigInteger כדי לתמוך ב-Telegram IDs כמו 7757102350
     telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
     username = Column(String, nullable=True)
     is_admin = Column(Boolean, default=False)
@@ -39,6 +39,9 @@ class User(Base):
 
 
 class Portfolio(Base):
+    """
+    פניות משקיעים / פורטפוליו – כל הודעה מהמשקיע יכולה להישמר כאן.
+    """
     __tablename__ = "portfolios"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -53,6 +56,9 @@ class Portfolio(Base):
 
 
 class Link(Base):
+    """
+    קישורים כלליים – לשימוש עתידי (תיקי השקעות, אתרים וכו').
+    """
     __tablename__ = "links"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -64,6 +70,9 @@ class Link(Base):
 
 
 class Content(Base):
+    """
+    תוכן (במקום 'שיעורים') – להצגה באתר/בוט.
+    """
     __tablename__ = "contents"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -74,6 +83,9 @@ class Content(Base):
 
 
 class Transaction(Base):
+    """
+    טרנזקציות – תשלומים / השקעות / 39 ש"ח וכו'.
+    """
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
