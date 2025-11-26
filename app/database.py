@@ -16,14 +16,14 @@ if DATABASE_URL.startswith("sqlite"):
         DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
-        echo=False  # הגדר ל-True לשלבי פיתוח כדי לראות queries
+        echo=False
     )
 else:
     # עבור PostgreSQL, MySQL וכו'
     engine = create_engine(
         DATABASE_URL,
-        pool_pre_ping=True,  # בדיקת חיבור לפני שימוש
-        pool_recycle=300,    # מחזור חיבורים כל 5 דקות
+        pool_pre_ping=True,
+        pool_recycle=300,
         echo=False
     )
 
