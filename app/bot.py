@@ -8,7 +8,6 @@ from telegram.ext import (
     CommandHandler, CallbackQueryHandler, MessageHandler, 
     filters, ContextTypes, Application
 )
-from telegram.error import TelegramError
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
@@ -27,7 +26,7 @@ COMMUNITY_GROUP_ID = os.environ.get("COMMUNITY_GROUP_ID", "-1001748319682")
 DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "secure_admin_password_123")
 SITE_URL = "https://osifeu-prog.github.io/PROMO/"
 
-# קישורים מוגדרים מראש - ללא GitHub
+# קישורים מוגדרים מראש
 LINKS = [
     {"title": "🤖 Slh_selha_bot", "url": "https://t.me/Slh_selha_bot"},
     {"title": "🛒 BUY_MY_SHOP", "url": "https://t.me/BUY_MY_SHOP"},
@@ -62,16 +61,11 @@ class Callback(str):
 def setup_handlers(ptb: Application) -> None:
     """הגדרת כל ה-handlers של הבוט"""
     try:
-        # Command handlers
         ptb.add_handler(CommandHandler("start", start))
         ptb.add_handler(CommandHandler("login", admin_login))
         ptb.add_handler(CommandHandler("request_admin", request_admin_command))
         ptb.add_handler(CommandHandler("stats", user_stats))
-        
-        # FIXED: Callback handler with pattern to catch all callbacks
         ptb.add_handler(CallbackQueryHandler(handle_callback, pattern=".*"))
-        
-        # Message handler
         ptb.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
         logger.info("✅ Bot handlers setup completed successfully")
@@ -91,7 +85,6 @@ def build_main_menu(user: Any = None) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📈 השקעות כבדות", callback_data=Callback.INVEST)],
     ]
     
-    # כפתורי אדמין - מוצגים רק למנהלים
     if user and user.is_admin:
         keyboard.append([InlineKeyboardButton("🔒 פאנל אדמין", callback_data=Callback.ADMIN)])
     else:
@@ -114,12 +107,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         username = update.effective_user.username
         first_name = update.effective_user.first_name
         
-        logger.info(f"🚀 User {user_id} started the bot - @{username} - {first_name}")
+        logger.info(f"🚀 User {user_id} started the bot")
         
         # שליחה לוג לקבוצה
         if COMMUNITY_GROUP_ID:
             try:
-                log_message = f"👤 משתמש חדש התחיל את הבוט:\nID: {user_id}\nשם: {first_name}\n@{username if username else 'ללא username'}"
+                log_message = f"👤 משתמש חדש: {first_name} (@{username}) - ID: {user_id}"
                 await context.bot.send_message(COMMUNITY_GROUP_ID, log_message)
             except Exception as e:
                 logger.error(f"Failed to send log to group: {e}")
@@ -133,14 +126,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 first_name=first_name
             )
             user = create_user(db, user_data)
-            if user:
-                logger.info(f"✅ Created new user: {user_id}")
-            else:
-                logger.error(f"❌ Failed to create user: {user_id}")
-                user = get_user_by_telegram_id(db, user_id)  # Try to get again
+            logger.info(f"✅ Created new user: {user_id}")
         
         # הפיכה לאדמין אם זה המשתמש המוגדר
-        if user and user_id == ADMIN_USER_ID and not user.is_admin:
+        if user_id == ADMIN_USER_ID and not user.is_admin:
             make_admin(db, user_id, DEFAULT_ADMIN_PASSWORD)
             logger.info(f"👑 User {user_id} promoted to admin")
         
@@ -178,13 +167,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
     except Exception as e:
         logger.error(f"❌ Error in start handler: {e}")
-        try:
-            await update.message.reply_text(
-                "❌ אירעה שגיאה בהפעלת הבוט. נסה שוב מאוחר יותר.",
-                reply_markup=build_main_menu()
-            )
-        except Exception as send_error:
-            logger.error(f"Could not send error message: {send_error}")
+        await update.message.reply_text(
+            "❌ אירעה שגיאה בהפעלת הבוט. נסה שוב מאוחר יותר.",
+            reply_markup=build_main_menu()
+        )
     finally:
         if db:
             db.close()
@@ -197,7 +183,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     data = query.data
     user_id = query.from_user.id
     
-    # DEBUG: Log callback details
     logger.info(f"🔄 Callback received: {data} from user {user_id}")
     
     db = None
@@ -205,7 +190,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         db = SessionLocal()
         user = get_user_by_telegram_id(db, user_id)
         
-        # מיפוי handlers ל-callbacks
         if data == Callback.ABOUT:
             await handle_about(query)
         elif data == Callback.CONTENT:
@@ -229,7 +213,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         elif data == Callback.BACK_TO_MAIN:
             await handle_back_to_main(query, db, user)
         else:
-            logger.warning(f"Unknown callback data: {data}")
             await query.edit_message_text(
                 "❌ פעולה לא זוהתה.",
                 reply_markup=build_back_button()
@@ -254,12 +237,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if db:
             db.close()
 
-# ... (כל שאר פונקציות ה-handle_* נשארות כפי שהיו)
-
 async def handle_about(query):
     """טיפול באודות"""
-    try:
-        about_text = """
+    about_text = """
 🌟 *אודות SLH - Smart Life Hub*
 
 *המהפכה הדיגיטלית שכולם מדברים עליה!*
@@ -288,20 +268,375 @@ async def handle_about(query):
 • פתרונות אבטחה מתקדמים
 
 *הצטרפו אלינו היום ובנו את העתיד הפיננסי שלכם!*"""
-        
+    
+    await query.edit_message_text(
+        about_text,
+        reply_markup=build_back_button(),
+        parse_mode='Markdown'
+    )
+
+async def handle_content(query):
+    """טיפול בתוכן ואקדמיה"""
+    text = """
+📚 *תוכן ואקדמיה SLH*
+
+*קורסים מקוונים מתקדמים בתחומים:*
+• כלכלה בריאה וניהול הון
+• בינה מלאכותית וטכנולוגיה
+• פסיכולוגיה פיננסית
+• מסחר דיגיטלי ובלוקצ'יין
+• ניהול סיכונים והשקעות
+
+🎓 *יתרונות הלמידה אצלנו:*
+• ליווי אישי ממומחים
+• תוכן מעודכן ואקטואלי
+• קהילת לומדים תומכת
+• תעודות הסמכה רשמיות
+
+*הקורסים החדשים יפתחו בקרוב! הישארו מעודכנים.*"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🎓 קורסים קרובים", url="https://t.me/SLH_Academia_bot")],
+        [InlineKeyboardButton("📖 חומרי לימוד", url=SITE_URL)],
+        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)]
+    ]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def handle_coins(query):
+    """טיפול במטבעות ומסחר"""
+    text = """
+💰 *מטבעות SLH - מערכת מסחר מתקדמת*
+
+*הפלטפורמה המשולבת שלנו מציעה:*
+
+🪙 *מטבע פנימי עם סטייקינג*
+• תשואות אטרקטיביות על אחזקה
+• שימוש במערכת הפנימית
+• הטבות בלעדיות למחזיקים
+
+🔗 *חיבור לרשתות מובילות*
+• Binance Smart Chain (BSC)
+• TON Blockchain
+• Ethereum Network
+• רשתות נוספות בהמשך
+
+📈 *בורסה פנימית מתקדמת*
+• מסחר בזמן אמת
+• עמלות תחרותיות
+• ממשק מתקדם ופשוט
+
+🤖 *בוט מסחר חכם*
+• ניתוחים טכניים מתקדמים
+• איתותים אוטומטיים
+• ניהול סיכונים חכם
+
+*הצטרפו למהפכת הקריפטו עם SLH!*"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🪙 מטבע SLH", url="https://t.me/crypto_A_bot")],
+        [InlineKeyboardButton("📈 בוט מסחר", url="https://t.me/Slh_selha_bot")],
+        [InlineKeyboardButton("💱 המרות", url="https://t.me/BUY_MY_SHOP")],
+        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)]
+    ]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def handle_games(query):
+    """טיפול במשחקים ו-NFT"""
+    text = """
+🎮 *משחקים ו-NFT - חוויה ייחודית*
+
+*אקוסיסטם גיימינג עשיר ומתקדם:*
+
+🎯 *תשתית ארקייד מתקדמת*
+• משחקים מרובי משתתפים
+• תחרויות עם פרסים
+• דירוגים ולידרבורדים
+
+🃏 *קזינו נקודות וחוויה*
+• משחקים קלאסיים
+• טורנירים שבועיים
+• פרסים ומתנות
+
+🖼️ *שוק NFT פעיל*
+• יצירה ומכירה של NFT
+• תערוכות דיגיטליות
+• קולקציות בלעדיות
+
+🏆 *תחרויות ופרסים*
+• אירועים שבועיים
+• פרסים כספיים
+• נכסים דיגיטליים
+
+*שחקו והרוויחו עם SLH Games!*"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🎮 משחקים", url="https://t.me/NFTY_madness_bot")],
+        [InlineKeyboardButton("🖼️ NFT", url="https://t.me/BUY_MY_SHOP")],
+        [InlineKeyboardButton("🏆 טורנירים", url="https://t.me/+HIzvM8sEgh1kNWY0")],
+        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)]
+    ]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def handle_experts(query):
+    """טיפול במערכת מומחים"""
+    text = """
+🧑‍💼 *מערכת מומחים - מצאו את השותף המושלם*
+
+*רשת מומחים גלובלית עם AI מתקדם:*
+
+🤝 *התאמה מקצועית*
+• אלגוריתם AI חכם להתאמה
+• ניתוח יכולות וכישורים
+• בניית צוותים אופטימליים
+
+🎯 *ניתוח יכולות מתקדם*
+• מיפוי כישורים וניסיון
+• התאמה לפרויקטים ספציפיים
+• המלצות חכמות
+
+👥 *בניית צוותים אופטימליים*
+• הרכב צוותים מאוזן
+• השלמת כישורים
+• ניהול פרויקטים משותף
+
+📊 *ליווי אישי להצלחה*
+• מנטורינג אישי
+• פידבקים ובקרה
+• פיתוח קריירה
+
+*הצטרפו לקהילת המומחים של SLH!*"""
+    
+    keyboard = [
+        [InlineKeyboardButton("🤖 מערכת מומחים", url="https://t.me/SLH_Academia_bot")],
+        [InlineKeyboardButton("👥 קהילה", url="https://t.me/+HIzvM8sEgh1kNWY0")],
+        [InlineKeyboardButton("📚 משאבים", url=SITE_URL)],
+        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)]
+    ]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def handle_invest(query):
+    """טיפול בהשקעות"""
+    keyboard = [
+        [InlineKeyboardButton("📊 מידע השקעות", url=SITE_URL)],
+        [InlineKeyboardButton("🤵 צור קשר", url="https://t.me/ICQ2_bot")],
+        [InlineKeyboardButton("💼 פאנל השקעות", callback_data=Callback.INVEST_PANEL)],
+        [InlineKeyboardButton("💰 השקע עכשיו", callback_data=Callback.INVEST_NOW)],
+        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)],
+    ]
+    
+    text = """
+📈 *השקעות כבדות - הזדמנות ייחודית*
+
+*תוכנית גיוס 10 מיליון ש"ח עם יתרונות בלעדיים:*
+
+💎 *דיבידנטים ושותפות מלאה*
+• תשואות חודשיות קבועות
+• שקיפות מלאה בעסקאות
+• שותפות אסטרטגית
+
+🛡️ *שקיפות ואבטחה*
+• חוזים חכמים מאובטחים
+• ביקורות סדירות
+• דוחות כספיים שקופים
+
+🤝 *ליווי צמוד להשקעה*
+• ייעוץ מקצועי צמוד
+• ניהול סיכונים מתקדם
+• עדכונים שוטפים
+
+📊 *מודל השקעה מוכח*
+• ניסיון מוכח בשוק
+• תיק השקעות מגוון
+• אסטרטגיות מותאמות אישית
+
+*השקיעו בעתיד הדיגיטלי עם SLH!*"""
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def handle_invest_now(query):
+    """טיפול בבקשת השקעה"""
+    text = """
+💼 *השקעה כבדה - צרו קשר היום!*
+
+*לפרטים והשקעה (מ-10,000 ש"ח):*
+
+📋 *תהליך ההשקעה:*
+1. *שלב ראשון:* צרו קשר והעבירו פרטים
+2. *שלב שני:* קבלו הצעת השקעה מותאמת
+3. *שלב שלישי:* חתימה על חוזה חכם
+4. *שלב רביעי:* העברת השקעה וקבלת אישור
+5. *שלב חמישי:* הצטרפות לקבוצת משקיעים בלעדית
+
+🛡️ *יתרונות בלעדיים:*
+• ליווי אישי צמוד
+• שקיפות מלאה
+• דיווחים שוטפים
+• תשואות אטרקטיביות
+
+📞 *דרכי יצירת קשר:*
+• בוט טלגרם: @ICQ2_bot
+• אתר: https://osifeu-prog.github.io/PROMO/
+• מייל: info@slh-ecosystem.com
+
+*המהפכה הדיגיטלית מחכה לכם!*"""
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=build_back_button(),
+        parse_mode='Markdown'
+    )
+
+async def handle_invest_panel(query, db, user):
+    """פאנל השקעות אישי"""
+    if not user:
         await query.edit_message_text(
-            about_text,
-            reply_markup=build_back_button(),
-            parse_mode='Markdown'
-        )
-    except Exception as e:
-        logger.error(f"Error in handle_about: {e}")
-        await query.edit_message_text(
-            "❌ שגיאה בטעינת תוכן האודות.",
+            "❌ לא נמצאו נתוני משתמש.",
             reply_markup=build_back_button()
         )
+        return
+    
+    transactions = get_user_transactions(db, user.id, limit=10)
+    
+    text = f"""
+💼 *פאנל השקעות VIP - {user.first_name or user.username}*
 
-# ... (כל שאר הפונקציות נשארות ללא שינוי)
+📊 *סטטוס משתמש:*
+• 🤵 משקיע: {user.first_name or 'אורח'}
+• 🆔 מזהה: {user.telegram_id}
+• 📅 הצטרף: {user.created_at.strftime('%d/%m/%Y') if user.created_at else 'לא ידוע'}
+
+"""
+    
+    if transactions:
+        text += "💰 *עסקאות אחרונות:*\n"
+        total_invested = sum(t.amount for t in transactions if t.status == 'completed')
+        
+        for i, transaction in enumerate(transactions, 1):
+            status_emoji = "✅" if transaction.status == 'completed' else "⏳" if transaction.status == 'pending' else "❌"
+            text += f"{i}. {status_emoji} *{transaction.amount:,.2f} {transaction.currency}*\n"
+            text += f"   📝 {transaction.description or 'השקעה כללית'}\n"
+            text += f"   🕒 {transaction.timestamp.strftime('%d/%m/%Y')}\n\n"
+        
+        text += f"*סך הכל הושקע:* {total_invested:,.2f} {transactions[0].currency if transactions else 'USD'}"
+    else:
+        text += """
+📭 *אין עסקאות כרגע*
+
+💡 *התחל להשקיע עכשיו וקבל:*
+• תשואות משמעותיות
+• ליווי אישי צמוד
+• גישה לקהילה בלעדית
+
+🎯 *להתחלת השקעה:*"""
+    
+    keyboard = [
+        [InlineKeyboardButton("💰 השקע עכשיו", callback_data=Callback.INVEST_NOW)],
+        [InlineKeyboardButton("📞 צור קשר", url="https://t.me/ICQ2_bot")],
+        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)]
+    ]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def handle_admin(query, db, user):
+    """פאנל אדמין"""
+    if not user or not user.is_admin:
+        await query.answer("❌ גישה מוגבלת - אין לך הרשאות אדמין.", show_alert=True)
+        return
+    
+    text = f"""
+🔒 *פאנל אדמין מתקדם - {user.first_name or user.username}*
+
+*ניהול מלא של אקוסיסטם SLH:*
+
+📊 *סטטיסטיקות מערכת*
+• צפייה בנתונים ועדכונים
+• ניתוח ביצועים
+• דוחות מתקדמים
+
+👥 *ניהול משתמשים*
+• ניהול הרשאות
+• סטטיסטיקות משתמשים
+• תמיכה וסיוע
+
+📝 *ניהול תוכן*
+• הוספת ועדכון תוכן
+• ניהול קורסים
+• פרסום הודעות
+
+💳 *ניהול עסקאות*
+• מעקב אחר השקעות
+• אישור עסקאות
+• דוחות כספיים
+
+📢 *שליחת הודעות*
+• הודעות לקהילה
+• עדכונים למשקיעים
+• פרסומים שיווקיים
+
+*בחר פעולה לניהול:*"""
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=build_back_button(),
+        parse_mode='Markdown'
+    )
+
+async def handle_request_admin(query, context, db, user):
+    """בקשת הרשאות אדמין"""
+    text = """
+🛡️ *בקשת גישת אדמין*
+
+בקשתך נשלחה להתייחסות.
+נציג יחזור אליך בהקדם לדיון
+בחוזה חכם והגדרת הרשאות.
+
+📧 לדיון מהיר: @ICQ2_bot
+"""
+    
+    try:
+        if COMMUNITY_GROUP_ID:
+            admin_message = f"🛡️ בקשת אדמין חדשה מ-@{user.username or 'Unknown'} (ID: {user.telegram_id})"
+            await context.bot.send_message(COMMUNITY_GROUP_ID, admin_message)
+    except Exception as e:
+        logger.error(f"Could not send admin request to group: {e}")
+    
+    await query.edit_message_text(text, reply_markup=build_back_button(), parse_mode='Markdown')
+
+async def handle_back_to_main(query, db, user):
+    """חזרה לתפריט ראשי"""
+    await query.edit_message_text(
+        "🎯 *בחר את האזור שמעניין אותך:*",
+        reply_markup=build_main_menu(user),
+        parse_mode='Markdown'
+    )
 
 async def admin_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """התחברות כאדמין"""
@@ -421,7 +756,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         logger.info(f"💬 Message from user {user_id}: {message_text}")
         
-        # תשובה להודעות כלליות
         response = "🤖 *אני בוט SLH!* השתמשו בתפריט או בפקודות לניווט."
         
         db = SessionLocal()
