@@ -1,70 +1,36 @@
-import logging
-import os
-from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.api.endpoints import users, items  # נוסיף endpoints בהמשך
 
-from fastapi import FastAPI, Request, Response, Depends
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-from telegram import Update
-from telegram.ext import Application
-
-from app.database import Base, engine, get_db
-from app.bot import setup_handlers
-from app import crud, schemas
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
-logger = logging.getLogger(__name__)
 
-# Ensure DB schema exists
-Base.metadata.create_all(bind=engine)
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-TOKEN = os.environ["BOT_TOKEN"]
-WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g. https://web-production-112f6.up.railway.app
-
-ptb_app: Application = Application.builder().token(TOKEN).build()
-setup_handlers(ptb_app)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("Starting Telegram application and setting webhook...")
-    await ptb_app.initialize()
-    await ptb_app.start()
-    await ptb_app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-    logger.info("Webhook set to %s/%s", WEBHOOK_URL, TOKEN)
-    yield
-    # Shutdown
-    logger.info("Shutting down Telegram application...")
-    await ptb_app.bot.delete_webhook()
-    await ptb_app.stop()
-    await ptb_app.shutdown()
-    logger.info("Telegram application stopped.")
-
-
-app = FastAPI(lifespan=lifespan)
-
-# Serve the investor one-pager from /docs
-app.mount("/docs", StaticFiles(directory="docs", html=True), name="docs")
-
-
-@app.post(f"/{TOKEN}")
-async def telegram_webhook(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, ptb_app.bot)
-    await ptb_app.process_update(update)
-    return Response(status_code=200)
-
+# Routes
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to My FastAPI App!",
+        "version": settings.VERSION,
+        "docs": "/docs"
+    }
 
 @app.get("/health")
-async def health():
-    return {"status": "ok", "service": "PROMO investors bot"}
+async def health_check():
+    return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
 
-
-@app.get("/api/stats", response_model=schemas.StatsOut)
-def api_stats(db: Session = Depends(get_db)):
-    """Public stats endpoint – can be used by dashboards / landing page."""
-    return crud.get_stats(db)
+# Include API routes
+app.include_router(users.router, prefix=settings.API_V1_STR, tags=["users"])
+app.include_router(items.router, prefix=settings.API_V1_STR, tags=["items"])
