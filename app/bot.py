@@ -171,6 +171,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         db = next(get_db())
         user = get_user_by_telegram_id(db, user_id)
         
+        # מיפוי handlers ל-callbacks
         handlers = {
             Callback.ABOUT: handle_about,
             Callback.CONTENT: handle_content,
@@ -197,12 +198,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except Exception as e:
         logger.error(f"Error in callback handler: {e}")
         try:
-            await query.edit_message_text(
+            await update.callback_query.edit_message_text(
                 "❌ אירעה שגיאה בעיבוד הבקשה.",
                 reply_markup=build_back_button()
             )
         except:
-            pass
+            # אם לא ניתן לערוך את ההודעה, שלח הודעה חדשה
+            await update.callback_query.message.reply_text(
+                "❌ אירעה שגיאה בעיבוד הבקשה.",
+                reply_markup=build_back_button()
+            )
 
 async def handle_about(query, context, db, user):
     """טיפול באודות"""
