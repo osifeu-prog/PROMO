@@ -2,26 +2,24 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 import logging
 
 logger = logging.getLogger("app.database")
 
-# קבלת DATABASE_URL מהסביבה, עם ערך ברירת מחדל ל-SQLite
+# קבלת DATABASE_URL מהסביבה
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./slh_bot.db")
 
-logger.info(f"🔧 Database URL: {DATABASE_URL}")
+logger.info(f"🔧 Initializing database: {DATABASE_URL}")
 
-# הגדרת engine עם פרמטרים מתאימים לסוג מסד הנתונים
+# הגדרת engine
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
         echo=False
     )
 else:
-    # עבור PostgreSQL, MySQL וכו'
+    # עבור PostgreSQL
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
@@ -30,41 +28,21 @@ else:
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 def get_db():
-    """
-    Dependency injection עבור FastAPI routes
-    """
+    """Dependency injection עבור sessions"""
     db = SessionLocal()
     try:
         yield db
-    except Exception as e:
-        logger.error(f"Database session error: {e}")
-        db.rollback()
-        raise
     finally:
         db.close()
 
-def test_connection():
-    """
-    בדיקת חיבור למסד הנתונים
-    """
-    try:
-        with engine.connect() as conn:
-            conn.execute("SELECT 1")
-        logger.info("✅ Database connection test successful")
-        return True
-    except Exception as e:
-        logger.error(f"❌ Database connection test failed: {e}")
-        return False
-
 def create_tables():
-    """
-    יצירת הטבלות במסד הנתונים
-    """
+    """יצירת הטבלות במסד הנתונים"""
     try:
+        # יבוא המודלים כאן כדי ש-SQLAlchemy יזהה אותם
+        from app.models import User, Transaction, Portfolio, Content, Link
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Database tables created successfully")
         return True
