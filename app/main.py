@@ -1,4 +1,6 @@
 import os
+import json
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, Depends
@@ -12,66 +14,67 @@ from app.bot import setup_handlers
 from app import crud
 from app.schemas import StatsOut
 
+logger = logging.getLogger("app.main")
+logging.basicConfig(level=logging.INFO)
 
-# ========== CONFIG & DB ==========
+
+# ========= CONFIG =========
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "").rstrip("/")  # למשל: https://web-production-112f6.up.railway.app
 
 
+# ========= DB RESET (לשלב פיתוח) =========
+
 def reset_db() -> None:
     """
-    איפוס מלא של הסכמה מהקוד (רק כשאין לך עדיין נתונים חשובים!).
-    מוחק את כל הטבלאות ובונה אותן מחדש לפי המודלים הנוכחיים.
+    Drop & recreate all tables – מתאים לשלב בו עדיין אין נתונים חשובים.
+    ברגע שתתחיל לצבור נתונים אמיתיים – מסירים את הקריאה לפונקציה הזו.
     """
+    logger.info("Resetting database schema (drop_all + create_all)...")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
 
-# ⚠️ כרגע – מפעילים reset_db בתחילת הריצה.
-# אחרי שהפרויקט עולה לפרודקשן אמיתי ויש כבר נתונים, כדאי להסיר/להעיר שורה זו.
+# ⚠️ כרגע – מפעילים reset_db בכל סטארט.
+# כשישקיעו כבר בפועל ויהיו נתונים אמת – נוריד את השורה הזאת.
 reset_db()
 
 
-# ========== TELEGRAM APPLICATION ==========
+# ========= TELEGRAM APPLICATION =========
 
 ptb_app = Application.builder().token(BOT_TOKEN).build()
-setup_handlers(ptb_app)  # טעינת כל ה-handlers של הבוט
+setup_handlers(ptb_app)
 
 
-# ========== FASTAPI LIFESPAN ==========
+# ========= LIFESPAN =========
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    מנהל את מחזור החיים של האפליקציה:
-    - אתחול ושיגור הבוט
-    - סט והסרה של webhook
-    """
-    # אתחול הבוט
+    logger.info("Starting Telegram Application...")
     await ptb_app.initialize()
 
-    # סט webhook לטלגרם – מגדיר לאן טלגרם ישלח עדכונים
     if WEBHOOK_URL:
-        await ptb_app.bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")
+        hook_url = f"{WEBHOOK_URL}/{BOT_TOKEN}"
+        await ptb_app.bot.set_webhook(url=hook_url)
+        logger.info("Webhook set to %s", hook_url)
 
-    # התחלת הבוט (לוגיקה פנימית של PTB – לא polling, אלא רק הכנת האפליקציה)
     await ptb_app.start()
 
     try:
         yield
     finally:
-        # ניקוי – הסרת webhook וסגירת האפליקציה
         try:
             await ptb_app.bot.delete_webhook()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to delete webhook: %s", e)
 
         await ptb_app.stop()
         await ptb_app.shutdown()
+        logger.info("Telegram Application stopped.")
 
 
-# ========== FASTAPI APP ==========
+# ========= FASTAPI APP =========
 
 app = FastAPI(
     title="SLH Investor Bot & Landing",
@@ -79,14 +82,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# דף משקיעים סטטי – docs/index.html
+# דף משקיעים סטטי
 app.mount(
     "/investors",
     StaticFiles(directory="docs", html=True),
     name="investors",
 )
 
-# אם תרצה לגשת ישירות לתמונת ה-Hero או לנכסים אחרים:
+# נכסים סטטיים (תמונות וכו')
 app.mount(
     "/assets",
     StaticFiles(directory="docs/images"),
@@ -94,32 +97,39 @@ app.mount(
 )
 
 
-# ========== ROUTES ==========
+# ========= ROUTES =========
 
 @app.post(f"/{BOT_TOKEN}")
 async def telegram_webhook(request: Request):
     """
-    נקודת Webhook שאליה טלגרם שולח עדכונים.
-    Railway צריך לדעת להפנות את ה-POST הזה לפה.
+    נקודת Webhook שמטפלת בכל העדכונים מטלגרם.
+    כאן נוספו לוגים כדי שנראה בריילווי אם בכלל מגיעות בקשות.
     """
-    data = await request.json()
-    update = Update.de_json(data, ptb_app.bot)
-    await ptb_app.process_update(update)
+    raw_body = await request.body()
+    logger.info("Webhook hit, raw body size=%d bytes", len(raw_body))
+
+    try:
+        data = json.loads(raw_body.decode("utf-8"))
+    except Exception:
+        logger.exception("Failed to parse webhook JSON")
+        return Response(status_code=400)
+
+    try:
+        update = Update.de_json(data, ptb_app.bot)
+        await ptb_app.process_update(update)
+    except Exception:
+        logger.exception("Error while processing Telegram update")
+        return Response(status_code=500)
+
     return Response(status_code=200)
 
 
 @app.get("/health")
 async def health_check():
-    """
-    בדיקת חיים ל-Railway.
-    """
     return {"status": "ok"}
 
 
 @app.get("/api/stats", response_model=StatsOut)
 def api_stats(db: Session = Depends(get_db)):
-    """
-    API קטן לסטטיסטיקות – אפשר להציג בעתיד בדשבורד משקיעים.
-    """
     stats = crud.get_stats(db)
     return StatsOut(**stats)
