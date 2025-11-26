@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update
 from telegram.ext import Application
-from telegram.error import TelegramError
+from telegram.error import TelegramError, TimedOut, NetworkError
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, get_db, SessionLocal, create_tables
@@ -20,7 +20,7 @@ from app import crud
 # ========= LOGGING SETUP =========
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
@@ -34,7 +34,6 @@ logger = logging.getLogger("app.main")
 class Settings:
     def __init__(self):
         self.bot_token = os.getenv("BOT_TOKEN")
-        # FIX: Fallback אם WEBHOOK_URL לא מוגדר
         self.webhook_url = os.getenv("WEBHOOK_URL", "https://web-production-112f6.up.railway.app")
         self.environment = os.getenv("ENVIRONMENT", "production")
         
@@ -81,50 +80,48 @@ async def lifespan(app: FastAPI):
         await ptb_app.initialize()
         logger.info("✅ Telegram application initialized")
 
-        # FIX: הגדרת webhook עם fallback URL
+        # הגדרת webhook
         hook_url = f"{settings.webhook_url.rstrip('/')}/{settings.bot_token}"
         
-        try:
-            # מחיקת webhook קיים והגדרה מחדש
-            logger.info(f"🔄 Deleting existing webhook...")
-            await ptb_app.bot.delete_webhook(drop_pending_updates=True)
-            time.sleep(2)
-            
-            logger.info(f"🔄 Setting new webhook to: {hook_url}")
-            success = await ptb_app.bot.set_webhook(
-                url=hook_url,
-                drop_pending_updates=True,
-                allowed_updates=["message", "callback_query", "inline_query"]
-            )
-            
-            if success:
-                logger.info("✅ Webhook set successfully!")
-            else:
-                logger.error("❌ Failed to set webhook!")
-            
-            # בדיקת webhook
-            webhook_info = await ptb_app.bot.get_webhook_info()
-            logger.info(f"📋 Webhook info: URL={webhook_info.url}, Pending={webhook_info.pending_update_count}")
-            
-            if webhook_info.url != hook_url:
-                logger.error(f"❌ Webhook URL mismatch! Expected: {hook_url}, Got: {webhook_info.url}")
-            else:
-                logger.info("✅ Webhook configured correctly!")
-                
-        except TelegramError as e:
-            logger.error(f"❌ Failed to set webhook: {e}")
-            # FIX: ננסה שוב עם URL מפורש
+        logger.info(f"🔄 Setting webhook to: {hook_url}")
+        
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
-                fallback_url = "https://web-production-112f6.up.railway.app/8244838819:AAFPfTxHsxZRkdwp9DAsnMGr7GUpTrg6iUg"
-                logger.info(f"🔄 Trying fallback URL: {fallback_url}")
-                await ptb_app.bot.set_webhook(
-                    url=fallback_url,
+                # מחיקת webhook קיים
+                await ptb_app.bot.delete_webhook(drop_pending_updates=True)
+                time.sleep(2)
+                
+                # הגדרת webhook חדש
+                success = await ptb_app.bot.set_webhook(
+                    url=hook_url,
                     drop_pending_updates=True,
-                    allowed_updates=["message", "callback_query"]
+                    allowed_updates=["message", "callback_query", "inline_query"],
+                    max_connections=40
                 )
-            except Exception as fallback_error:
-                logger.error(f"❌ Fallback also failed: {fallback_error}")
-
+                
+                if success:
+                    logger.info("✅ Webhook set successfully!")
+                    break
+                else:
+                    logger.error(f"❌ Failed to set webhook (attempt {attempt + 1}/{max_retries})")
+                    
+            except (TelegramError, TimedOut, NetworkError) as e:
+                logger.error(f"❌ Webhook setup failed (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(5)
+                else:
+                    raise
+        
+        # בדיקת webhook
+        webhook_info = await ptb_app.bot.get_webhook_info()
+        logger.info(f"📋 Webhook info: URL={webhook_info.url}, Pending={webhook_info.pending_update_count}")
+        
+        if webhook_info.url == hook_url:
+            logger.info("✅ Webhook configured correctly!")
+        else:
+            logger.error(f"❌ Webhook URL mismatch! Expected: {hook_url}, Got: {webhook_info.url}")
+            
         await ptb_app.start()
         logger.info("✅ Application startup completed successfully")
 
@@ -174,16 +171,24 @@ async def telegram_webhook(request: Request):
         body_text = body.decode('utf-8')
         
         logger.info(f"📩 Received webhook request")
-        logger.debug(f"📦 Request body: {body_text}")
         
         data = json.loads(body_text)
         
         # לוג בסיסי
         update_id = data.get('update_id', 'unknown')
-        message_text = data.get('message', {}).get('text', 'No text')
-        user_id = data.get('message', {}).get('from', {}).get('id', 'Unknown')
+        message = data.get('message', {})
+        callback_query = data.get('callback_query', {})
         
-        logger.info(f"🔄 Processing update {update_id} from user {user_id}: {message_text}")
+        if message:
+            user_id = message.get('from', {}).get('id', 'Unknown')
+            message_text = message.get('text', 'No text')
+            logger.info(f"🔄 Processing message update {update_id} from user {user_id}: {message_text}")
+        elif callback_query:
+            user_id = callback_query.get('from', {}).get('id', 'Unknown')
+            callback_data = callback_query.get('data', 'No data')
+            logger.info(f"🔄 Processing callback update {update_id} from user {user_id}: {callback_data}")
+        else:
+            logger.info(f"🔄 Processing update {update_id} (unknown type)")
         
         # עיבוד העדכון
         update = Update.de_json(data, ptb_app.bot)
@@ -261,7 +266,8 @@ async def reset_webhook():
         await ptb_app.bot.set_webhook(
             url=hook_url,
             drop_pending_updates=True,
-            allowed_updates=["message", "callback_query", "inline_query"]
+            allowed_updates=["message", "callback_query", "inline_query"],
+            max_connections=40
         )
         
         webhook_info = await ptb_app.bot.get_webhook_info()
@@ -270,8 +276,7 @@ async def reset_webhook():
             "success": True,
             "message": "Webhook reset successfully",
             "webhook_url": webhook_info.url,
-            "pending_updates": webhook_info.pending_update_count,
-            "has_custom_certificate": webhook_info.has_custom_certificate
+            "pending_updates": webhook_info.pending_update_count
         }
     except Exception as e:
         logger.error(f"Webhook reset failed: {e}")
@@ -306,4 +311,4 @@ if os.path.isdir("docs"):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="debug")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
