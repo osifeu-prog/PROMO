@@ -20,7 +20,7 @@ from app import crud
 # ========= LOGGING SETUP =========
 
 logging.basicConfig(
-    level=logging.DEBUG,  # שינוי ל-DEBUG ליותר פרטים
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
@@ -34,7 +34,8 @@ logger = logging.getLogger("app.main")
 class Settings:
     def __init__(self):
         self.bot_token = os.getenv("BOT_TOKEN")
-        self.webhook_url = os.getenv("WEBHOOK_URL", "").rstrip("/")
+        # FIX: Fallback אם WEBHOOK_URL לא מוגדר
+        self.webhook_url = os.getenv("WEBHOOK_URL", "https://web-production-112f6.up.railway.app")
         self.environment = os.getenv("ENVIRONMENT", "production")
         
         if not self.bot_token:
@@ -80,35 +81,49 @@ async def lifespan(app: FastAPI):
         await ptb_app.initialize()
         logger.info("✅ Telegram application initialized")
 
-        # הגדרת webhook
-        if settings.webhook_url:
-            hook_url = f"{settings.webhook_url}/{settings.bot_token}"
+        # FIX: הגדרת webhook עם fallback URL
+        hook_url = f"{settings.webhook_url.rstrip('/')}/{settings.bot_token}"
+        
+        try:
+            # מחיקת webhook קיים והגדרה מחדש
+            logger.info(f"🔄 Deleting existing webhook...")
+            await ptb_app.bot.delete_webhook(drop_pending_updates=True)
+            time.sleep(2)
+            
+            logger.info(f"🔄 Setting new webhook to: {hook_url}")
+            success = await ptb_app.bot.set_webhook(
+                url=hook_url,
+                drop_pending_updates=True,
+                allowed_updates=["message", "callback_query", "inline_query"]
+            )
+            
+            if success:
+                logger.info("✅ Webhook set successfully!")
+            else:
+                logger.error("❌ Failed to set webhook!")
+            
+            # בדיקת webhook
+            webhook_info = await ptb_app.bot.get_webhook_info()
+            logger.info(f"📋 Webhook info: URL={webhook_info.url}, Pending={webhook_info.pending_update_count}")
+            
+            if webhook_info.url != hook_url:
+                logger.error(f"❌ Webhook URL mismatch! Expected: {hook_url}, Got: {webhook_info.url}")
+            else:
+                logger.info("✅ Webhook configured correctly!")
+                
+        except TelegramError as e:
+            logger.error(f"❌ Failed to set webhook: {e}")
+            # FIX: ננסה שוב עם URL מפורש
             try:
-                # מחיקת webhook קיים והגדרה מחדש
-                logger.info(f"🔄 Deleting existing webhook...")
-                await ptb_app.bot.delete_webhook(drop_pending_updates=True)
-                time.sleep(2)
-                
-                logger.info(f"🔄 Setting new webhook to: {hook_url}")
+                fallback_url = "https://web-production-112f6.up.railway.app/8244838819:AAFPfTxHsxZRkdwp9DAsnMGr7GUpTrg6iUg"
+                logger.info(f"🔄 Trying fallback URL: {fallback_url}")
                 await ptb_app.bot.set_webhook(
-                    url=hook_url,
+                    url=fallback_url,
                     drop_pending_updates=True,
-                    allowed_updates=["message", "callback_query", "inline_query"]
+                    allowed_updates=["message", "callback_query"]
                 )
-                
-                # בדיקת webhook
-                webhook_info = await ptb_app.bot.get_webhook_info()
-                logger.info(f"✅ Webhook info: URL={webhook_info.url}, Pending={webhook_info.pending_update_count}, Has Custom Certificate={webhook_info.has_custom_certificate}")
-                
-                if webhook_info.url != hook_url:
-                    logger.error(f"❌ Webhook URL mismatch! Expected: {hook_url}, Got: {webhook_info.url}")
-                else:
-                    logger.info("✅ Webhook configured correctly!")
-                    
-            except TelegramError as e:
-                logger.error(f"❌ Failed to set webhook: {e}")
-        else:
-            logger.warning("⚠️ No WEBHOOK_URL set - using polling")
+            except Exception as fallback_error:
+                logger.error(f"❌ Fallback also failed: {fallback_error}")
 
         await ptb_app.start()
         logger.info("✅ Application startup completed successfully")
@@ -193,7 +208,8 @@ async def root():
         "service": "SLH Bot API", 
         "timestamp": time.time(),
         "version": "1.0.0",
-        "message": "Bot is running!"
+        "message": "Bot is running!",
+        "webhook_url": f"{settings.webhook_url}/{settings.bot_token}"
     }
 
 @app.get("/health")
@@ -241,13 +257,12 @@ async def reset_webhook():
         await ptb_app.bot.delete_webhook(drop_pending_updates=True)
         time.sleep(3)
         
-        if settings.webhook_url:
-            hook_url = f"{settings.webhook_url}/{settings.bot_token}"
-            await ptb_app.bot.set_webhook(
-                url=hook_url,
-                drop_pending_updates=True,
-                allowed_updates=["message", "callback_query", "inline_query"]
-            )
+        hook_url = f"{settings.webhook_url}/{settings.bot_token}"
+        await ptb_app.bot.set_webhook(
+            url=hook_url,
+            drop_pending_updates=True,
+            allowed_updates=["message", "callback_query", "inline_query"]
+        )
         
         webhook_info = await ptb_app.bot.get_webhook_info()
         
@@ -284,12 +299,9 @@ async def test_webhook():
 
 # ========= STATIC FILES =========
 
-# הגשה של קבצים סטטיים לאתר
 if os.path.isdir("docs"):
     app.mount("/", StaticFiles(directory="docs", html=True), name="docs")
     logger.info("Mounted static files at /")
-
-# ========= RUN SERVER =========
 
 if __name__ == "__main__":
     import uvicorn
