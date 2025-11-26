@@ -11,7 +11,7 @@ from telegram.ext import (
 from telegram.error import TelegramError
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import SessionLocal
 from app.crud import (
     get_user_by_telegram_id, create_user, make_admin, 
     get_user_transactions, update_user
@@ -62,17 +62,23 @@ class Callback(str):
 def setup_handlers(ptb: Application) -> None:
     """הגדרת כל ה-handlers של הבוט"""
     try:
+        # Command handlers
         ptb.add_handler(CommandHandler("start", start))
         ptb.add_handler(CommandHandler("login", admin_login))
         ptb.add_handler(CommandHandler("request_admin", request_admin_command))
         ptb.add_handler(CommandHandler("stats", user_stats))
-        ptb.add_handler(CallbackQueryHandler(handle_callback))
+        
+        # FIXED: Callback handler with pattern to catch all callbacks
+        ptb.add_handler(CallbackQueryHandler(handle_callback, pattern=".*"))
+        
+        # Message handler
         ptb.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
         # Error handler
         ptb.add_error_handler(error_handler)
         
         logger.info("Bot handlers setup completed successfully")
+        
     except Exception as e:
         logger.error(f"Failed to setup bot handlers: {e}")
         raise
@@ -104,8 +110,9 @@ def build_back_button() -> InlineKeyboardMarkup:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler לפקודת /start"""
+    db = None
     try:
-        db = next(get_db())
+        db = SessionLocal()
         user_id = update.effective_user.id
         username = update.effective_user.username
         first_name = update.effective_user.first_name
@@ -129,10 +136,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 first_name=first_name
             )
             user = create_user(db, user_data)
-            logger.info(f"✅ Created new user: {user_id}")
+            if user:
+                logger.info(f"✅ Created new user: {user_id}")
+            else:
+                logger.error(f"❌ Failed to create user: {user_id}")
+                user = get_user_by_telegram_id(db, user_id)  # Try to get again
         
         # הפיכה לאדמין אם זה המשתמש המוגדר
-        if user_id == ADMIN_USER_ID and not user.is_admin:
+        if user and user_id == ADMIN_USER_ID and not user.is_admin:
             make_admin(db, user_id, DEFAULT_ADMIN_PASSWORD)
             logger.info(f"👑 User {user_id} promoted to admin")
         
@@ -170,10 +181,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
     except Exception as e:
         logger.error(f"❌ Error in start handler: {e}")
-        await update.message.reply_text(
-            "❌ אירעה שגיאה בהפעלת הבוט. נסה שוב מאוחר יותר.",
-            reply_markup=build_main_menu()
-        )
+        try:
+            await update.message.reply_text(
+                "❌ אירעה שגיאה בהפעלת הבוט. נסה שוב מאוחר יותר.",
+                reply_markup=build_main_menu()
+            )
+        except Exception as send_error:
+            logger.error(f"Could not send error message: {send_error}")
+    finally:
+        if db:
+            db.close()
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler לכל ה-callbacks"""
@@ -183,10 +200,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     data = query.data
     user_id = query.from_user.id
     
+    # DEBUG: Log callback details
     logger.info(f"🔄 Callback received: {data} from user {user_id}")
+    logger.info(f"📋 Callback data type: {type(data)}")
+    logger.info(f"👤 User details: {query.from_user.username}")
     
+    db = None
     try:
-        db = next(get_db())
+        db = SessionLocal()
         user = get_user_by_telegram_id(db, user_id)
         
         # מיפוי handlers ל-callbacks
@@ -213,6 +234,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         elif data == Callback.BACK_TO_MAIN:
             await handle_back_to_main(query, db, user)
         else:
+            logger.warning(f"Unknown callback data: {data}")
             await query.edit_message_text(
                 "❌ פעולה לא זוהתה.",
                 reply_markup=build_back_button()
@@ -233,6 +255,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
             except Exception:
                 logger.error("Could not send error message to user")
+    finally:
+        if db:
+            db.close()
 
 async def handle_about(query):
     """טיפול באודות"""
@@ -644,8 +669,9 @@ async def handle_back_to_main(query, db, user):
 
 async def admin_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """התחברות כאדמין"""
+    db = None
     try:
-        db = next(get_db())
+        db = SessionLocal()
         user_id = update.effective_user.id
         user = get_user_by_telegram_id(db, user_id)
         
@@ -661,16 +687,24 @@ async def admin_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     except Exception as e:
         logger.error(f"Error in admin_login: {e}")
         await update.message.reply_text("❌ שגיאה בהתחברות.")
+    finally:
+        if db:
+            db.close()
 
 async def request_admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """פקודה לבקשת אדמין"""
+    db = None
     try:
-        db = next(get_db())
+        db = SessionLocal()
         user_id = update.effective_user.id
         user = get_user_by_telegram_id(db, user_id)
         
         if not user:
-            user_data = UserCreate(telegram_id=user_id, username=update.effective_user.username)
+            user_data = UserCreate(
+                telegram_id=user_id, 
+                username=update.effective_user.username,
+                first_name=update.effective_user.first_name
+            )
             user = create_user(db, user_data)
         
         text = """
@@ -695,11 +729,15 @@ async def request_admin_command(update: Update, context: ContextTypes.DEFAULT_TY
     except Exception as e:
         logger.error(f"Error in request_admin_command: {e}")
         await update.message.reply_text("❌ שגיאה בשליחת הבקשה.")
+    finally:
+        if db:
+            db.close()
 
 async def user_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """סטטיסטיקות אישיות"""
+    db = None
     try:
-        db = next(get_db())
+        db = SessionLocal()
         user_id = update.effective_user.id
         user = get_user_by_telegram_id(db, user_id)
         
@@ -734,9 +772,13 @@ async def user_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception as e:
         logger.error(f"Error in user_stats: {e}")
         await update.message.reply_text("❌ שגיאה בטעינת הסטטיסטיקות.")
+    finally:
+        if db:
+            db.close()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler להודעות טקסט רגילות"""
+    db = None
     try:
         message_text = update.message.text
         user_id = update.effective_user.id
@@ -746,7 +788,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # תשובה להודעות כלליות
         response = "🤖 *אני בוט SLH!* השתמשו בתפריט או בפקודות לניווט."
         
-        db = next(get_db())
+        db = SessionLocal()
         user = get_user_by_telegram_id(db, user_id)
         
         await update.message.reply_text(
@@ -757,6 +799,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
     except Exception as e:
         logger.error(f"Error in message_handler: {e}")
+    finally:
+        if db:
+            db.close()
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """טיפול בשגיאות כלליות"""
