@@ -1,272 +1,117 @@
 import logging
-import os
-from enum import Enum
-
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
-from telegram.ext import (
-    CommandHandler,
-    CallbackQueryHandler,
-    Application,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
-from sqlalchemy.orm import Session
-
-from app.database import get_db
-from app import crud, schemas
-from app.models import User
+from telegram import Bot, Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", "0"))
-PAYMENT_GROUP_ID = int(os.environ.get("PAYMENT_GROUP_ID", "0"))
-COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", "0"))
-
-DOCS_URL = os.environ.get(
-    "DOCS_URL",
-    "https://web-production-112f6.up.railway.app/investors",
-)
-GITHUB_URL = os.environ.get(
-    "GITHUB_URL",
-    "https://github.com/osifeu-prog/PROMO",
-)
-
-
-class Callback(str, Enum):
-    ABOUT = "about"
-    MODEL = "model"
-    PORTFOLIO = "portfolio"
-    CONTACT = "contact"
-    ADMIN_PANEL = "admin_panel"
-    ADMIN_STATS = "admin_stats"
-
-
-def _get_or_create_user(db: Session, update: Update) -> User:
-    tg_user = update.effective_user
-    if not tg_user:
-        raise RuntimeError("No Telegram user in update")
-    user = crud.get_user_by_telegram_id(db, tg_user.id)
-    if not user:
-        user = crud.create_user(
-            db,
-            schemas.UserCreate(telegram_id=tg_user.id, username=tg_user.username or ""),
-            is_admin=(tg_user.id == ADMIN_USER_ID),
-        )
-    return user
-
-
-async def _reply_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    callback_rows = [
-        [
-            InlineKeyboardButton("מה זו האימפריה של SLH?", callback_data=Callback.ABOUT),
-        ],
-        [
-            InlineKeyboardButton("מודל ההשקעה והגיוס", callback_data=Callback.MODEL),
-        ],
-        [
-            InlineKeyboardButton("שליחת פרטי משקיע/פורטפוליו", callback_data=Callback.PORTFOLIO),
-        ],
-        [
-            InlineKeyboardButton("דברו איתנו ישירות", callback_data=Callback.CONTACT),
-        ],
-    ]
-
-    url_row = [
-        InlineKeyboardButton("🌐 דף המשקיעים", url=DOCS_URL),
-        InlineKeyboardButton("💻 קוד המערכת (GitHub)", url=GITHUB_URL),
-    ]
-
-    if update.effective_user and update.effective_user.id == ADMIN_USER_ID:
-        callback_rows.append(
-            [InlineKeyboardButton("🔐 פאנל אדמין", callback_data=Callback.ADMIN_PANEL)]
-        )
-
-    keyboard = callback_rows + [url_row]
-
-    text = (
-        "ברוך הבא לבוט המשקיעים של <b>SLH / SELA</b> 👋\n\n"
-        "כאן מרוכז כל <b>התוכן</b>, המידע והחיבורים למשקיעים גדולים שרוצים להיכנס "
-        "ללב האקו-סיסטם הכלכלי שלנו.\n\n"
-        "בחר אחת מהאפשרויות בתפריט או פתח את דף המשקיעים לצפייה מלאה במודל."
-    )
-    await update.effective_chat.send_message(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="HTML",
-    )
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db: Session = next(get_db())
-    try:
-        _get_or_create_user(db, update)
-    finally:
-        db.close()
-    await _reply_main_menu(update, context)
-
-
-async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db: Session = next(get_db())
-    try:
-        user = _get_or_create_user(db, update)
-        await update.effective_chat.send_message(
-            f"ID: {user.telegram_id}\n"
-            f"Username: @{user.username}\n"
-            f"Admin: {'כן' if user.is_admin else 'לא'}"
-        )
-    finally:
-        db.close()
-
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    chat = query.message.chat
-
-    if data == Callback.ABOUT:
-        text = (
-            "🔵 <b>SLH / SELA – Human Capital Protocol</b>\n\n"
-            "אנחנו בונים אימפריה כלכלית שמחברת בין:\n"
-            "• קהילות עסקיות ויזמים\n"
-            "• פלטפורמת תוכן והכשרות חכמה\n"
-            "• אקו-סיסטם של בוטים, ארנקים, NFT ו-DeFi\n\n"
-            "הבוט הזה הוא שער לכניסה כמשקיע גדול – עם מבט גבוה על כל המערכת.\n\n"
-            f"לקבלת תמונת מאקרו מלאה, אפשר לקרוא את מסמך המשקיעים שלנו כאן:\n{DOCS_URL}"
-        )
-        await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
-
-    elif data == Callback.MODEL:
-        text = (
-            "📈 <b>מודל ההשקעה</b>\n\n"
-            "• גיוס מטרה: <b>10M ₪</b> בסבב משקיעים סגור.\n"
-            "• שימוש בכסף: הרחבת התשתיות, פיתוח בוטים, תוכן, אקדמיה ופלטפורמת SLH Exchange.\n"
-            "• שקיפות מלאה בגיבוי DB ו-Contracts חכמים לכל משקיע.\n\n"
-            "ניתן להציג בזמן אמת סטטיסטיקות וצמיחה (דרך פאנל האדמין וה-API הפנימי)."
-        )
-        await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
-
-    elif data == Callback.PORTFOLIO:
-        text = (
-            "🧩 <b>שליחת פרטי משקיע</b>\n\n"
-            "שלח כאן הודעה חופשית עם:\n"
-            "• סכום השקעה משוער\n"
-            "• טווח זמן\n"
-            "• ניסיון/תחומי עניין\n\n"
-            "אנחנו ניצור עבורך כרטיס משקיע במערכת ונחזור אליך מתוך הקבוצה הסגורה."
-        )
-        await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
-
-    elif data == Callback.CONTACT:
-        text = (
-            "📞 <b>יצירת קשר ישיר</b>\n\n"
-            "צוות SLH זמין עבורך דרך קבוצת המשקיעים והקהילה.\n"
-            "הבוט יקשר אותך לקבוצות ולדיון פרטני לאחר שנקבל את פרטי ההשקעה שלך.\n\n"
-            "הקבוצות עצמן מנוהלות על גבי תשתית השרתים שלנו (Railway + Postgres) כדי להבטיח סדר ושקיפות."
-        )
-        await chat.edit_message_text(text, parse_mode="HTML", reply_markup=query.message.reply_markup)
-
-    elif data == Callback.ADMIN_PANEL:
-        if query.from_user.id != ADMIN_USER_ID:
-            await query.answer("אין לך הרשאות לאדמין.", show_alert=True)
+class TelegramBotService:
+    def __init__(self):
+        self.bot = None
+        self.application = None
+        
+    async def initialize(self):
+        """Initialize the Telegram bot"""
+        if not settings.BOT_TOKEN:
+            logger.warning("No BOT_TOKEN provided, skipping Telegram bot initialization")
             return
-
-        db: Session = next(get_db())
+            
         try:
-            stats = crud.get_stats(db)
-        finally:
-            db.close()
+            self.application = Application.builder().token(settings.BOT_TOKEN).build()
+            self.bot = self.application.bot
+            
+            # Add handlers
+            self.application.add_handler(CommandHandler("start", self.start_command))
+            self.application.add_handler(CommandHandler("help", self.help_command))
+            self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+            
+            # Set webhook if WEBHOOK_URL is provided
+            if settings.WEBHOOK_URL:
+                webhook_url = f"{settings.WEBHOOK_URL}/webhook/telegram"
+                await self.bot.set_webhook(webhook_url)
+                logger.info(f"Webhook set to: {webhook_url}")
+            else:
+                logger.info("Running in polling mode")
+                
+            logger.info("✅ Telegram bot initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Telegram bot: {e}")
+            raise
 
-        text = (
-            "🔐 <b>פאנל אדמין – SLH Investors</b>\n\n"
-            f"סה\"כ משקיעים במערכת: <b>{stats.total_users}</b>\n"
-            f"מספר עסקאות מתועדות: <b>{stats.total_transactions}</b>\n"
-            f"סכום מצטבר (לפי DB): <b>{stats.total_amount_usd:.2f} USD</b>\n\n"
-            "ניתן להרחיב את הפאנל הזה לעוד מדדים ודוחות, או לחבר אותו ישירות ללוח מחוונים חיצוני."
+    async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /start command"""
+        user = update.effective_user
+        await update.message.reply_text(
+            f"👋 Hello {user.first_name}!\n\n"
+            f"Welcome to {settings.PROJECT_NAME}!\n"
+            f"Version: {settings.VERSION}\n"
+            f"Environment: {settings.RAILWAY_ENVIRONMENT}"
         )
-        keyboard = [
-            [InlineKeyboardButton("רענון נתונים", callback_data=Callback.ADMIN_STATS)]
-        ]
-        await chat.edit_message_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard),
+
+    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /help command"""
+        help_text = """
+🤖 **Available Commands:**
+
+/start - Start the bot
+/help - Show this help message
+/status - Check bot status
+
+📊 **Bot Information:**
+- Environment: {environment}
+- Version: {version}
+- Admin: {admin_id}
+        """.format(
+            environment=settings.RAILWAY_ENVIRONMENT,
+            version=settings.VERSION,
+            admin_id=settings.ADMIN_USER_ID
         )
+        await update.message.reply_text(help_text)
 
-    elif data == Callback.ADMIN_STATS:
-        if query.from_user.id != ADMIN_USER_ID:
-            await query.answer("אין לך הרשאות לאדמין.", show_alert=True)
-            return
+    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle regular messages"""
+        user_id = update.effective_user.id
+        
+        # Check if user is admin
+        if str(user_id) == settings.ADMIN_USER_ID:
+            await update.message.reply_text("✅ Admin command received")
+        else:
+            await update.message.reply_text("👋 Thanks for your message!")
 
-        db: Session = next(get_db())
-        try:
-            stats = crud.get_stats(db)
-        finally:
-            db.close()
+    async def send_to_admin(self, message: str):
+        """Send message to admin"""
+        if self.bot and settings.ADMIN_USER_ID:
+            try:
+                await self.bot.send_message(chat_id=settings.ADMIN_USER_ID, text=message)
+            except Exception as e:
+                logger.error(f"Failed to send message to admin: {e}")
 
-        text = (
-            "📊 <b>נתוני מערכת מעודכנים</b>\n\n"
-            f"משתמשים: {stats.total_users}\n"
-            f"עסקאות: {stats.total_transactions}\n"
-            f"סכום מצטבר: {stats.total_amount_usd:.2f} USD"
-        )
-        await query.edit_message_text(text, parse_mode="HTML")
+    async def send_to_payment_group(self, message: str):
+        """Send message to payment group"""
+        if self.bot and settings.PAYMENT_GROUP_ID:
+            try:
+                await self.bot.send_message(chat_id=settings.PAYMENT_GROUP_ID, text=message)
+            except Exception as e:
+                logger.error(f"Failed to send message to payment group: {e}")
 
+    async def send_to_community_group(self, message: str):
+        """Send message to community group"""
+        if self.bot and settings.COMMUNITY_GROUP_ID:
+            try:
+                await self.bot.send_message(chat_id=settings.COMMUNITY_GROUP_ID, text=message)
+            except Exception as e:
+                logger.error(f"Failed to send message to community group: {e}")
 
-async def portfolio_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.type not in ("private",):
-        return
+# Global instance
+telegram_bot = TelegramBotService()
 
-    db: Session = next(get_db())
-    try:
-        user = _get_or_create_user(db, update)
-        body = update.message.text or ""
-        portfolio = schemas.PortfolioCreate(
-            title="Investor Inquiry",
-            description=body,
-            links=None,
-        )
-        crud.create_portfolio(db, user_id=user.id, portfolio=portfolio)
-    finally:
-        db.close()
+async def initialize_bot():
+    """Initialize the bot (called from main.py)"""
+    await telegram_bot.initialize()
 
-    await update.message.reply_text(
-        "קיבלנו את הפרטים שלך.\n"
-        "אחד מחברי הצוות יחזור אליך מתוך קבוצת המשקיעים / בשיחה פרטית."
-    )
-
-
-async def payment_group_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.id != PAYMENT_GROUP_ID:
-        return
-
-    msg = update.effective_message
-    admin_mention = (
-        f"<a href='tg://user?id={ADMIN_USER_ID}'>אדמין</a>" if ADMIN_USER_ID else "אדמין"
-    )
-    await context.bot.send_message(
-        chat_id=COMMUNITY_GROUP_ID if COMMUNITY_GROUP_ID else update.effective_chat.id,
-        text=(
-            "📥 התקבלה הודעת תשלום/אישור בקבוצת התשלומים.\n\n"
-            f"{admin_mention} – אנא בדוק את ההודעה הבאה:\n"
-            f"{msg.text_html if msg.text else ''}"
-        ),
-        parse_mode="HTML",
-    )
-
-
-def setup_handlers(app: Application):
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("whoami", whoami))
-
-    app.add_handler(CallbackQueryHandler(button))
-    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, portfolio_message))
-    app.add_handler(MessageHandler(filters.ChatType.GROUPS, payment_group_handler))
-
-    return app
+async def process_webhook(update_dict: dict):
+    """Process webhook update"""
+    if telegram_bot.application:
+        update = Update.de_json(update_dict, telegram_bot.application.bot)
+        await telegram_bot.application.process_update(update)
