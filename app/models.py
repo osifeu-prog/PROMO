@@ -48,9 +48,11 @@ class User(Base):
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
 
-    # Admin / auth (בעתיד נשתמש ב-hashed_password אמיתי)
+    # Admin / auth
+    # שדה זה נשאר בשם password_hash כדי לא לשבור את crud/bot הקיימים
+    # גם אם בפועל נשתמש בו להאש מוצפן בעתיד.
     is_admin = Column(Boolean, default=False)
-    hashed_password = Column(String(255), nullable=True)
+    password_hash = Column(String(255), nullable=True)
 
     # Usage / sessions
     active_sessions = Column(Integer, default=0)
@@ -75,10 +77,6 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-
-    # כאן בעתיד אפשר להוסיף:
-    # def set_password(self, password: str): ...
-    # def verify_password(self, password: str) -> bool: ...
 
 
 class Portfolio(Base):
