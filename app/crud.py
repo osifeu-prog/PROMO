@@ -1,35 +1,38 @@
-from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app import models, schemas
-from app.utils import generate_contract_hash
+from sqlalchemy.orm import Session
+
+from app.models import User, Portfolio, Link, Content, Transaction
+from app.utils import hash_password, generate_contract_hash
+from app.schemas import UserCreate, PortfolioCreate
 
 
 def get_user_by_telegram_id(db: Session, telegram_id: int):
-    return db.query(models.User).filter(models.User.telegram_id == telegram_id).first()
+    return db.query(User).filter(User.telegram_id == telegram_id).first()
 
 
-def create_user(db: Session, user: schemas.UserCreate, is_admin: bool = False):
-    db_user = models.User(
-        telegram_id=user.telegram_id,
-        username=user.username,
-        is_admin=is_admin,
-    )
+def create_user(db: Session, user: UserCreate):
+    db_user = User(telegram_id=user.telegram_id, username=user.username)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 
-def make_admin(db: Session, user: models.User):
-    user.is_admin = True
-    db.add(user)
+def make_admin(db: Session, telegram_id: int, password: str):
+    """Promote a user to admin with a password hash (for future use)."""
+    db_user = get_user_by_telegram_id(db, telegram_id)
+    if not db_user:
+        db_user = User(telegram_id=telegram_id, username=None)
+        db.add(db_user)
+    db_user.is_admin = True
+    db_user.password_hash = hash_password(password)
     db.commit()
-    db.refresh(user)
-    return user
+    db.refresh(db_user)
+    return db_user
 
 
-def create_portfolio(db: Session, user_id: int, portfolio: schemas.PortfolioCreate):
-    db_portfolio = models.Portfolio(
+def create_portfolio(db: Session, user_id: int, portfolio: PortfolioCreate):
+    db_portfolio = Portfolio(
         user_id=user_id,
         title=portfolio.title,
         description=portfolio.description,
@@ -41,27 +44,32 @@ def create_portfolio(db: Session, user_id: int, portfolio: schemas.PortfolioCrea
     return db_portfolio
 
 
-def create_transaction(db: Session, user_id: int, tx: schemas.TransactionCreate):
-    contract_hash = generate_contract_hash(tx.details)
-    db_tx = models.Transaction(
+def create_transaction(db: Session, user_id: int, amount: float, details: str):
+    contract_hash = generate_contract_hash(details)
+    db_transaction = Transaction(
         user_id=user_id,
-        amount=tx.amount,
-        currency=tx.currency,
-        details=tx.details,
+        amount=amount,
         contract_hash=contract_hash,
     )
-    db.add(db_tx)
+    db.add(db_transaction)
     db.commit()
-    db.refresh(db_tx)
-    return db_tx
+    db.refresh(db_transaction)
+    return db_transaction
 
 
-def get_stats(db: Session) -> schemas.StatsOut:
-    total_users = db.query(func.count(models.User.id)).scalar() or 0
-    total_transactions = db.query(func.count(models.Transaction.id)).scalar() or 0
-    total_amount = db.query(func.coalesce(func.sum(models.Transaction.amount), 0.0)).scalar() or 0.0
-    return schemas.StatsOut(
-        total_users=total_users,
-        total_transactions=total_transactions,
-        total_amount_usd=float(total_amount),
-    )
+def get_stats(db: Session):
+    """Return basic aggregate stats for admin / investors dashboards."""
+    total_users = db.query(func.count(User.id)).scalar() or 0
+    total_transactions = db.query(func.count(Transaction.id)).scalar() or 0
+    total_amount = db.query(func.coalesce(func.sum(Transaction.amount), 0)).scalar() or 0.0
+
+    return {
+        "total_users": int(total_users),
+        "total_transactions": int(total_transactions),
+        "total_amount_usd": float(total_amount),
+    }
+
+# Future extensions:
+# - get_links
+# - update_content
+# - advanced stats per cohort / funnel
