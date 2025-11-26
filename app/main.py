@@ -13,7 +13,7 @@ from telegram.ext import Application
 from telegram.error import TelegramError
 from sqlalchemy.orm import Session
 
-from app.database import engine, Base, get_db
+from app.database import engine, Base, get_db, SessionLocal
 from app.bot import setup_handlers
 from app import crud
 
@@ -54,8 +54,6 @@ def init_db():
         logger.error(f"Database initialization failed: {e}")
         return False
 
-init_db()
-
 # ========= TELEGRAM APPLICATION =========
 
 try:
@@ -73,6 +71,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting application in {settings.environment} mode")
     
     try:
+        # אתחול מסד נתונים
+        init_db()
+        
         await ptb_app.initialize()
         logger.info("Telegram application initialized")
 
@@ -86,7 +87,7 @@ async def lifespan(app: FastAPI):
                 await ptb_app.bot.set_webhook(
                     url=hook_url,
                     drop_pending_updates=True,
-                    allowed_updates=["message", "callback_query"]
+                    allowed_updates=["message", "callback_query"]  # FIX: כולל callback_query
                 )
                 logger.info(f"Webhook set to: {hook_url}")
                 
@@ -97,7 +98,7 @@ async def lifespan(app: FastAPI):
             except TelegramError as e:
                 logger.error(f"Failed to set webhook: {e}")
         else:
-            logger.warning("No WEBHOOK_URL set")
+            logger.warning("No WEBHOOK_URL set - using polling")
 
         await ptb_app.start()
         logger.info("Application startup completed successfully")
@@ -120,9 +121,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SLH Ecosystem API",
+    description="SLH Ecosystem Bot Backend",
+    version="1.0.0",
     lifespan=lifespan,
-    docs_url=None,
-    redoc_url=None,
+    docs_url="/docs" if os.getenv("ENVIRONMENT") == "development" else None,
+    redoc_url="/redoc" if os.getenv("ENVIRONMENT") == "development" else None,
 )
 
 # ========= MIDDLEWARE =========
@@ -146,7 +149,7 @@ async def telegram_webhook(request: Request):
         
         # לוג בסיסי
         update_id = data.get('update_id', 'unknown')
-        logger.info(f"Received update {update_id}")
+        logger.info(f"📩 Received update {update_id}")
         
         # עיבוד העדכון
         update = Update.de_json(data, ptb_app.bot)
@@ -164,19 +167,42 @@ async def telegram_webhook(request: Request):
 @app.get("/")
 async def root():
     """דף ברירת מחדל"""
-    return {"status": "OK", "service": "SLH Bot", "timestamp": time.time()}
+    return {
+        "status": "OK", 
+        "service": "SLH Bot API", 
+        "timestamp": time.time(),
+        "version": "1.0.0"
+    }
 
 @app.get("/health")
 async def health_check():
-    """Health check"""
+    """Health check מקיף"""
     try:
+        # בדיקת חיבור לבוט
         bot_info = await ptb_app.bot.get_me()
+        
+        # בדיקת מסד נתונים
+        db_ok = False
+        try:
+            db = SessionLocal()
+            db.execute("SELECT 1")
+            db_ok = True
+            db.close()
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+        
+        webhook_info = await ptb_app.bot.get_webhook_info()
+        
         return {
             "status": "healthy",
             "bot_username": bot_info.username,
-            "webhook_set": True
+            "database": "connected" if db_ok else "disconnected",
+            "webhook_url": webhook_info.url,
+            "pending_updates": webhook_info.pending_update_count,
+            "environment": settings.environment
         }
     except Exception as e:
+        logger.error(f"Health check failed: {e}")
         return {
             "status": "unhealthy",
             "error": str(e)
@@ -184,37 +210,57 @@ async def health_check():
 
 @app.post("/reset-webhook")
 async def reset_webhook():
-    """איפוס webhook"""
+    """איפוס webhook - שימושי לניפוי בעיות"""
     try:
         await ptb_app.bot.delete_webhook(drop_pending_updates=True)
         time.sleep(2)
         
-        hook_url = f"{settings.webhook_url}/{settings.bot_token}"
-        await ptb_app.bot.set_webhook(
-            url=hook_url,
-            drop_pending_updates=True,
-            allowed_updates=["message", "callback_query"]
-        )
+        if settings.webhook_url:
+            hook_url = f"{settings.webhook_url}/{settings.bot_token}"
+            await ptb_app.bot.set_webhook(
+                url=hook_url,
+                drop_pending_updates=True,
+                allowed_updates=["message", "callback_query"]
+            )
         
         webhook_info = await ptb_app.bot.get_webhook_info()
         
         return {
             "success": True,
+            "message": "Webhook reset successfully",
             "webhook_url": webhook_info.url,
             "pending_updates": webhook_info.pending_update_count
         }
     except Exception as e:
+        logger.error(f"Webhook reset failed: {e}")
         return {
             "success": False,
             "error": str(e)
         }
 
+@app.get("/stats")
+async def get_stats(db: Session = Depends(get_db)):
+    """סטטיסטיקות מערכת"""
+    try:
+        stats = crud.get_stats(db)
+        return {
+            "success": True,
+            "data": stats
+        }
+    except Exception as e:
+        logger.error(f"Failed to get stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve statistics")
+
 # ========= STATIC FILES =========
 
+# הגשה של קבצים סטטיים לאתר
 if os.path.isdir("docs"):
-    app.mount("/investors", StaticFiles(directory="docs", html=True), name="investors")
-    logger.info("Mounted /investors static files")
+    app.mount("/", StaticFiles(directory="docs", html=True), name="docs")
+    logger.info("Mounted static files at /")
+
+# ========= RUN SERVER =========
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
