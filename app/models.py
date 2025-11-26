@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, BigInteger
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
@@ -6,7 +6,7 @@ from app.database import Base
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    telegram_id = Column(Integer, unique=True, index=True)
+    telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
     username = Column(String)
     is_admin = Column(Boolean, default=False)
     password_hash = Column(String)  # For admins

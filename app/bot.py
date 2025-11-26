@@ -1,330 +1,145 @@
 import logging
+import random
 import os
+from pathlib import Path
 from enum import Enum
-
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from sqlalchemy.orm import Session
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
-from telegram.ext import (
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
-
 from app.database import get_db
-from app import crud
+from app.crud import get_user_by_telegram_id, create_user, make_admin, create_portfolio, create_transaction
+from app.utils import verify_password
+from app.models import Link
 from app.schemas import UserCreate, PortfolioCreate
 
+# לוגים
 logger = logging.getLogger(__name__)
 
-ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", "0"))
-PAYMENT_GROUP_ID = int(os.environ.get("PAYMENT_GROUP_ID", "0"))
-COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", "0"))
+# קונפיגורציה דרך משתני סביבה
+ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", 0))
+PAYMENT_GROUP_ID = int(os.environ.get("PAYMENT_GROUP_ID", 0))
+COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", 0))
+SITE_URL = os.environ.get("SITE_URL", "https://yourusername.github.io/repo/")
 
-DOCS_URL = os.environ.get(
-    "DOCS_URL",
-    "https://web-production-112f6.up.railway.app/investors",
-)
-GITHUB_URL = os.environ.get(
-    "GITHUB_URL",
-    "https://github.com/osifeu-prog/PROMO",
-)
+# קישורים מוגדרים מראש
+LINKS = [
+    {"title": "Slh_selha_bot", "url": "https://t.me/Slh_selha_bot"},
+    {"title": "BUY_MY_SHOP", "url": "https://t.me/BUY_MY_SHOP"},
+    {"title": "NFTY_madness_bot", "url": "https://t.me/NFTY_madness_bot"},
+    {"title": "קבוצת קהילת הבורסה", "url": "https://t.me/+HIzvM8sEgh1kNWY0"},
+    {"title": "crypto_A_bot", "url": "https://t.me/crypto_A_bot"},
+    {"title": "אתר ראשי: SLH", "url": SITE_URL},
+    {"title": "SLH_Academia_bot", "url": "https://t.me/SLH_Academia_bot"},
+    {"title": "YouTube Channel", "url": "https://www.youtube.com/channel/UC..."},  # עדכן URL מלא
+]
 
-# ניתן להחליף לקובץ סטטי בשרת שלך אם תרצה
-HERO_IMAGE_URL = os.environ.get(
-    "HERO_IMAGE_URL",
-    "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1200&q=80",
-)
+# תמונות רנדומליות מהאינטרנט
+EYE_CATCHING_IMAGES = [
+    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1621417201921-5d9a8f8f9e3d?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1605902711622-cfb43c4437b5?auto=format&fit=crop&w=1200&q=80",
+]
 
+# טקסט אודות נטען מקובץ חיצוני (docs/about.md)
+ABOUT_TEXT = Path("docs/about.md").read_text(encoding="utf-8")
 
+# Enum ל-callbacks
 class Callback(str, Enum):
     ABOUT = "about"
-    MODEL = "model"
-    PORTFOLIO = "portfolio"
-    CONTACT = "contact"
-    ADMIN_PANEL = "admin_panel"
-    ADMIN_STATS = "admin_stats"
+    CONTENT = "content"
+    COINS = "coins"
+    GAMES = "games"
+    EXPERTS = "experts"
+    INVEST = "invest"
+    ADMIN = "admin"
+    REQUEST_ADMIN = "request_admin"
+    INVEST_NOW = "invest_now"
+    INVEST_PANEL = "invest_panel"
 
+def setup_handlers(ptb):
+    ptb.add_handler(CommandHandler("start", start))
+    ptb.add_handler(CommandHandler("login", admin_login))
+    ptb.add_handler(CommandHandler("request_admin", request_admin))
+    ptb.add_handler(CallbackQueryHandler(callback_handler))
+    ptb.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
-def _get_or_create_user(db: Session, update: Update):
-    tg_user = update.effective_user
-    if not tg_user:
-        raise RuntimeError("No Telegram user in update")
+def build_main_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌐 אודות הפרויקט", callback_data=Callback.ABOUT)],
+        [InlineKeyboardButton("📚 תוכן ואקדמיה", callback_data=Callback.CONTENT)],
+        [InlineKeyboardButton("💰 מטבעות ומסחר", callback_data=Callback.COINS)],
+        [InlineKeyboardButton("🎮 משחקים ו-NFT", callback_data=Callback.GAMES)],
+        [InlineKeyboardButton("🧑‍💼 מערכת מומחים", callback_data=Callback.EXPERTS)],
+        [InlineKeyboardButton("📈 השקעות כבדות", callback_data=Callback.INVEST)],
+        [InlineKeyboardButton("🔗 בקר באתר", url=SITE_URL)],
+        [InlineKeyboardButton("🔒 אדמין (מורשים)", callback_data=Callback.ADMIN)],
+        [InlineKeyboardButton("🛡️ בקש גישה אדמין", callback_data=Callback.REQUEST_ADMIN)],
+    ])
 
-    user = crud.get_user_by_telegram_id(db, tg_user.id)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session = next(get_db())):
+    user_id = update.effective_user.id
+    user = get_user_by_telegram_id(db, user_id)
     if not user:
-        user = crud.create_user(
-            db,
-            UserCreate(
-                telegram_id=tg_user.id,
-                username=tg_user.username or "",
-            ),
-        )
-    return user
+        user = create_user(db, UserCreate(telegram_id=user_id, username=update.effective_user.username))
+    if user_id == ADMIN_USER_ID and not user.is_admin:
+        make_admin(db, user_id, "admin123")
 
-
-async def _send_main_menu(chat, is_admin: bool = False):
-    callback_rows = [
-        [
-            InlineKeyboardButton("מה זו האימפריה של SLH?", callback_data=Callback.ABOUT),
-        ],
-        [
-            InlineKeyboardButton("מודל ההשקעה והגיוס", callback_data=Callback.MODEL),
-        ],
-        [
-            InlineKeyboardButton("שליחת פרטי משקיע/פורטפוליו", callback_data=Callback.PORTFOLIO),
-        ],
-        [
-            InlineKeyboardButton("דברו איתנו ישירות", callback_data=Callback.CONTACT),
-        ],
-    ]
-
-    url_row = [
-        InlineKeyboardButton("🌐 דף המשקיעים", url=DOCS_URL),
-        InlineKeyboardButton("💻 קוד המערכת (GitHub)", url=GITHUB_URL),
-    ]
-
-    if is_admin and ADMIN_USER_ID:
-        callback_rows.append(
-            [InlineKeyboardButton("🔐 פאנל אדמין", callback_data=Callback.ADMIN_PANEL)]
-        )
-
-    keyboard = callback_rows + [url_row]
-
-    text = (
-        "ברוך הבא לבוט המשקיעים של <b>SLH / SELA</b> 👋\n\n"
-        "כאן מרוכז כל <b>התוכן</b>, המידע והחיבורים למשקיעים גדולים שרוצים להיכנס "
-        "ללב האקו-סיסטם הכלכלי שלנו.\n\n"
-        "בחר אחת מהאפשרויות בתפריט או פתח את דף המשקיעים לצפייה מלאה במודל."
-    )
-
-    await chat.send_photo(
-        HERO_IMAGE_URL,
-        caption=text,
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db: Session = next(get_db())
+    image_url = random.choice(EYE_CATCHING_IMAGES)
     try:
-        user = _get_or_create_user(db, update)
-        is_admin = user.telegram_id == ADMIN_USER_ID
-    finally:
-        db.close()
+        await update.message.reply_photo(photo=image_url, caption="🚀 הצטרפו למהפכה הדיגיטלית של SLH 🚀")
+    except Exception as e:
+        logger.error(f"Failed to send photo: {e}")
+        await update.message.reply_text("🚀 הצטרפו למהפכה הדיגיטלית של SLH 🚀")
 
-    chat = update.effective_chat
-    await _send_main_menu(chat, is_admin=is_admin)
+    await update.message.reply_text("גלה את העתיד הכלכלי: SLH – אקוסיסטם AI מבוסס אמון!", reply_markup=build_main_menu())
 
-
-async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db: Session = next(get_db())
-    try:
-        user = _get_or_create_user(db, update)
-        is_admin = user.telegram_id == ADMIN_USER_ID
-    finally:
-        db.close()
-
-    await update.effective_chat.send_message(
-        f"ID: {user.telegram_id}\nUsername: @{user.username}\nAdmin: {'כן' if is_admin else 'לא'}"
-    )
-
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session = next(get_db())):
     query = update.callback_query
-    await query.answer()
     data = query.data
-    chat = query.message.chat
+    user = get_user_by_telegram_id(db, query.from_user.id)
 
     if data == Callback.ABOUT:
-        text = (
-            "🔵 <b>SLH / SELA – Human Capital Protocol</b>\n\n"
-            "אנחנו בונים אימפריה כלכלית שמחברת בין:\n"
-            "• קהילות עסקיות ויזמים\n"
-            "• פלטפורמת תוכן והכשרות חכמה\n"
-            "• אקו-סיסטם של בוטים, ארנקים, NFT ו-DeFi\n\n"
-            "הבוט הזה הוא שער לכניסה כמשקיע גדול – עם מבט גבוה על כל המערכת.\n\n"
-            f"לקבלת תמונת מאקרו מלאה, אפשר לקרוא את מסמך המשקיעים שלנו כאן:\n{DOCS_URL}"
-        )
-        await chat.edit_message_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=query.message.reply_markup,
-        )
-
-    elif data == Callback.MODEL:
-        text = (
-            "📈 <b>מודל ההשקעה</b>\n\n"
-            "• גיוס מטרה: <b>10M ₪</b> בסבב משקיעים סגור.\n"
-            "• שימוש בכסף: הרחבת התשתיות, פיתוח בוטים, תוכן, אקדמיה ופלטפורמת SLH Exchange.\n"
-            "• שקיפות מלאה בגיבוי DB ו-Contracts חכמים לכל משקיע.\n\n"
-            "ניתן להציג בזמן אמת סטטיסטיקות וצמיחה (דרך פאנל האדמין וה-API הפנימי)."
-        )
-        await chat.edit_message_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=query.message.reply_markup,
-        )
-
-    elif data == Callback.PORTFOLIO:
-        text = (
-            "🧩 <b>שליחת פרטי משקיע</b>\n\n"
-            "שלח כאן הודעה חופשית עם:\n"
-            "• סכום השקעה משוער\n"
-            "• טווח זמן\n"
-            "• ניסיון/תחומי עניין\n\n"
-            "אנחנו ניצור עבורך כרטיס משקיע במערכת ונחזור אליך מתוך הקבוצה הסגורה."
-        )
-        await chat.edit_message_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=query.message.reply_markup,
-        )
-
-    elif data == Callback.CONTACT:
-        text = (
-            "📞 <b>יצירת קשר ישיר</b>\n\n"
-            "צוות SLH זמין עבורך דרך קבוצת המשקיעים והקהילה.\n"
-            "הבוט יקשר אותך לקבוצות ולדיון פרטני לאחר שנקבל את פרטי ההשקעה שלך.\n\n"
-            "הקבוצות עצמן מנוהלות על גבי תשתית השרתים שלנו (Railway + Postgres) כדי להבטיח סדר ושקיפות."
-        )
-        await chat.edit_message_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=query.message.reply_markup,
-        )
-
-    elif data == Callback.ADMIN_PANEL:
-        if not ADMIN_USER_ID or query.from_user.id != ADMIN_USER_ID:
-            await query.answer("אין לך הרשאות לאדמין.", show_alert=True)
-            return
-
-        db: Session = next(get_db())
-        try:
-            stats = crud.get_stats(db)
-        finally:
-            db.close()
-
-        text = (
-            "🔐 <b>פאנל אדמין – SLH Investors</b>\n\n"
-            f"סה\"כ משקיעים במערכת: <b>{stats['total_users']}</b>\n"
-            f"מספר עסקאות מתועדות: <b>{stats['total_transactions']}</b>\n"
-            f"סכום מצטבר (לפי DB): <b>{stats['total_amount_usd']:.2f} USD</b>\n\n"
-            "ניתן להרחיב את הפאנל הזה לעוד מדדים ודוחות, או לחבר אותו ישירות ללוח מחוונים חיצוני."
-        )
-        keyboard = [
-            [InlineKeyboardButton("רענון נתונים", callback_data=Callback.ADMIN_STATS)]
+        await query.edit_message_text(ABOUT_TEXT)
+    elif data == Callback.CONTENT:
+        await query.edit_message_text("📚 תוכן ואקדמיה SLH: קורסים מקוונים בכלכלה בריאה, AI ופסיכולוגיה.")
+    elif data == Callback.COINS:
+        await query.edit_message_text("💰 מטבעות SLH: מטבע פנימי עם סטייקינג וחיבור ל-BSC ו-TON.")
+    elif data == Callback.GAMES:
+        await query.edit_message_text("🎮 משחקים: תשתית ארקייד, קזינו נקודות ו-NFT.")
+    elif data == Callback.EXPERTS:
+        await query.edit_message_text("🧑‍💼 מערכת מומחים: AI לבחירת שותפים ומנטורים.")
+    elif data == Callback.INVEST:
+        invest_keyboard = [
+            [InlineKeyboardButton(link['title'], url=link['url']) for link in LINKS[:3]],
+            [InlineKeyboardButton("השקע עכשיו (מ-10,000 ש\"ח)", callback_data=Callback.INVEST_NOW)],
+            [InlineKeyboardButton("פאנל השקעות VIP", callback_data=Callback.INVEST_PANEL)],
         ]
-        await chat.edit_message_text(
-            text,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
+        await query.edit_message_text("📈 השקעות כבדות: גיוס 10 מיליון ש\"ח עם דיבידנטים ושותפות מלאה.", reply_markup=InlineKeyboardMarkup(invest_keyboard))
+    elif data == Callback.INVEST_NOW:
+        await query.message.reply_text("צור קשר להשקעה: שלח סכום (מ-10,000 ש\"ח) ופרטים. אישור חוזה חכם בקבוצת תשלומים.")
+    elif data == Callback.INVEST_PANEL:
+        transactions = user.transactions if user else []
+        text = "פאנל השקעות VIP:\n" + "\n".join([f"עסקה {t.id}: {t.amount} ש\"ח, סטטוס: {t.status}" for t in transactions])
+        await query.edit_message_text(text or "אין עסקאות כרגע.")
+    elif data == Callback.ADMIN:
+        if user and user.is_admin:
+            admin_keyboard = [
+                [InlineKeyboardButton("עדכן תוכן", callback_data="admin_update")],
+                [InlineKeyboardButton("הוסף קישור", callback_data="admin_add_link")],
+                [InlineKeyboardButton("נהל משתמשים", callback_data="admin_users")],
+                [InlineKeyboardButton("אשר השקעות", callback_data="admin_approve")],
+                [InlineKeyboardButton("שנה סיסמה", callback_data="admin_pass")],
+            ]
+            await query.edit_message_text("פאנל אדמין מתקדם – נהל את האקוסיסטם!", reply_markup=InlineKeyboardMarkup(admin_keyboard))
+        else:
+            await query.answer("גישה מוגבלת – בקש אישור.")
+    elif data == Callback.REQUEST_ADMIN:
+        await query.message.reply_text("בקשת אדמין נשלחה לקבוצה. נדון בחוזה חכם דרך הבוט.")
 
-    elif data == Callback.ADMIN_STATS:
-        if not ADMIN_USER_ID or query.from_user.id != ADMIN_USER_ID:
-            await query.answer("אין לך הרשאות לאדמין.", show_alert=True)
-            return
+async def request_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(COMMUNITY_GROUP_ID, f"בקשת אדמין חדשה מ-{update.effective_user.username}! נהל דיון וחוזה חכם כאן.")
 
-        db: Session = next(get_db())
-        try:
-            stats = crud.get_stats(db)
-        finally:
-            db.close()
-
-        text = (
-            "📊 <b>נתוני מערכת מעודכנים</b>\n\n"
-            f"משתמשים: {stats['total_users']}\n"
-            f"עסקאות: {stats['total_transactions']}\n"
-            f"סכום מצטבר: {stats['total_amount_usd']:.2f} USD"
-        )
-        await query.edit_message_text(text, parse_mode="HTML")
-
-
-async def portfolio_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle free-text investor messages in private chat as portfolio entries."""
-    if update.effective_chat.type != "private":
-        return
-
-    text = update.effective_message.text or ""
-    if not text.strip():
-        return
-
-    db: Session = next(get_db())
-    try:
-        user = _get_or_create_user(db, update)
-        portfolio = PortfolioCreate(
-            title="Investor Inquiry",
-            description=text,
-            links=None,
-        )
-        crud.create_portfolio(db, user_id=user.id, portfolio=portfolio)
-    finally:
-        db.close()
-
-    await update.effective_message.reply_text(
-        "קיבלנו את הפרטים שלך. אחד מחברי הצוות יחזור אליך מתוך קבוצת המשקיעים / בשיחה פרטית."
-    )
-
-
-async def payment_group_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Bridge important messages from the payment group into the community / admin."""
-    chat = update.effective_chat
-    if chat.id != PAYMENT_GROUP_ID:
-        return
-
-    msg = update.effective_message
-    text = msg.text_html or msg.caption_html or ""
-    if not text:
-        return
-
-    target_chat_id = COMMUNITY_GROUP_ID or ADMIN_USER_ID
-    if not target_chat_id:
-        return
-
-    admin_mention = (
-        f"<a href='tg://user?id={ADMIN_USER_ID}'>אדמין</a>" if ADMIN_USER_ID else "אדמין"
-    )
-
-    await context.bot.send_message(
-        chat_id=target_chat_id,
-        text=(
-            "📥 התקבלה הודעת תשלום/אישור בקבוצת התשלומים.\n\n"
-            f"{admin_mention} – אנא בדוק את ההודעה הבאה:\n"
-            f"{text}"
-        ),
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
-
-
-def setup_handlers(app):
-    """Attach all Telegram handlers to the Application instance."""
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("whoami", whoami))
-
-    app.add_handler(CallbackQueryHandler(button))
-
-    # Private messages from investors
-    app.add_handler(
-        MessageHandler(
-            filters.ChatType.PRIVATE & (~filters.COMMAND),
-            portfolio_message,
-        )
-    )
-
-    # Group payment notifications bridge
-    app.add_handler(
-        MessageHandler(
-            filters.ChatType.GROUPS & (~filters.COMMAND),
-            payment_group_bridge,
-        )
-    )
-
-    return app
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session = next(get_db())):
+    chat_id = update.message.chat_id
+    if chat_id == PAYMENT_GROUP_ID:
+        await context.bot.send_message(ADMIN

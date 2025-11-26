@@ -1,294 +1,108 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <title>SLH Ecosystem — Investor Overview 2025</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description"
-        content="SLH Ecosystem – The next-generation financial, commercial & social economic engine built on Blockchain, AI and Human Capital Protocol." />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLH - סלה ללא גבולות: אקוסיסטם דיגיטלי חדשני</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 
-  <!-- Open Graph / Social Preview -->
-  <meta property="og:title" content="SLH Ecosystem — Investor Overview 2025" />
-  <meta property="og:description"
-        content="Knowledge = Capital. Time = Currency. אקו־סיסטם המחבר בין ארנקים, בוטים, אקדמיה ומרקטפלייס לכלכלה אחת." />
-  <meta property="og:type" content="website" />
-  <meta property="og:image" content="images/hero.jpg" />
-  <meta property="og:locale" content="he_IL" />
+    <!-- Open Graph / Facebook / LinkedIn -->
+    <meta property="og:title" content="SLH Ecosystem: האקוסיסטם הדיגיטלי של העתיד – גיוס 10 מיליון ש\"ח">
+    <meta property="og:description" content="הצטרפו למהפכה כלכלית מבוססת AI, בלוקצ'יין ואמון. השקעות מ-10,000 ש\"ח עם תשואות דיבידנטים, ומעל 100,000 – שותפות מלאה. בנו עסקים גלובליים!">
+    <meta property="og:image" content="https://yourusername.github.io/repo/images/hero.jpg">  <!-- העלה תמונה ל-docs/images/hero.jpg -->
+    <meta property="og:url" content="https://yourusername.github.io/repo/">
+    <meta property="og:type" content="website">
 
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="SLH Ecosystem — Investor Overview 2025" />
-  <meta name="twitter:description"
-        content="Social-Finance + Learning + Automation – הכל באקו־סיסטם אחד." />
-  <meta name="twitter:image" content="images/hero.jpg" />
-
-  <!-- Bootstrap -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-  <!-- Custom Styles -->
-  <link rel="stylesheet" href="style.css" />
+    <!-- Twitter Cards (עבור X) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SLH Ecosystem: האקוסיסטם הדיגיטלי של העתיד – גיוס 10 מיליון ש\"ח">
+    <meta name="twitter:description" content="הצטרפו למהפכה כלכלית מבוססת AI, בלוקצ'יין ואמון. השקעות מ-10,000 ש\"ח עם תשואות דיבידנטים, ומעל 100,000 – שותפות מלאה. בנו עסקים גלובליים!">
+    <meta name="twitter:image" content="https://yourusername.github.io/repo/images/hero.jpg">
 </head>
 <body>
-  <!-- HERO -->
-  <header class="hero" style="background-image: url('images/hero.jpg');">
-    <div class="hero-overlay w-100">
-      <div class="container py-5">
-        <div class="row align-items-center">
-          <div class="col-lg-7">
-            <span class="badge bg-dark text-light badge-pill px-3 py-2 mb-3">
-              📘 SLH Ecosystem — Investor Overview 2025
-            </span>
-            <h1 class="display-5 fw-bold mb-3">
-              The Next-Generation Financial, Commercial &amp; Social Economic Engine
-            </h1>
-            <p class="lead mb-4">
-              Built on <b>Blockchain</b>, <b>AI</b>, and <b>Human Capital Protocol</b> —
-              connecting wallets, bots, academy, marketplace and a Pi-like index
-              לכלכלה אחת שעובדת כבר בשטח.
-            </p>
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-              <span class="badge bg-primary">Ask: $150K–$350K</span>
-              <span class="badge bg-success">Target: 10–20% Equity</span>
-              <span class="badge bg-secondary">39 ₪ Entry Engine</span>
-              <span class="ms-auto tempo-toggle small text-light-50">
-                🎵 מצב תצוגה: <b><span id="tempo-label">Calm</span></b>
-              </span>
-            </div>
-            <div class="d-flex flex-wrap gap-3 mb-3">
-              <a href="https://t.me/ICQ2_bot" class="btn btn-success btn-lg glow">
-                פתיחת בוט המשקיעים @ICQ2_bot
-              </a>
-              <a href="#exec-summary" class="btn btn-outline-light btn-lg">
-                מעבר לסיכום מנהלים
-              </a>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <a href="https://github.com/osifeu-prog/PROMO" class="btn btn-sm btn-dark">
-                💻 קוד המערכת ב-GitHub
-              </a>
-              <a href="#contact" class="btn btn-sm btn-outline-light">
-                📞 יצירת קשר עם הצוות
-              </a>
-            </div>
-          </div>
-          <div class="col-lg-5 mt-4 mt-lg-0">
-            <div class="section-card glow">
-              <h5 class="mb-3">Traction Snapshot*</h5>
-              <div class="row text-center">
-                <div class="col-6 mb-3">
-                  <div class="kpi-label">לידים ביום</div>
-                  <div id="kpi-leads" class="kpi-value">60+</div>
-                </div>
-                <div class="col-6 mb-3">
-                  <div class="kpi-label">משתמשים פעילים</div>
-                  <div id="kpi-users" class="kpi-value">Live</div>
-                </div>
-                <div class="col-6">
-                  <div class="kpi-label">ארנק קהילה</div>
-                  <div class="kpi-value">On-Chain</div>
-                </div>
-                <div class="col-6">
-                  <div class="kpi-label">Bots &amp; Marketplace</div>
-                  <div class="kpi-value">Running</div>
-                </div>
-              </div>
-              <p class="mt-3 mb-0" style="font-size: 0.8rem; opacity: 0.7">
-                *נתונים מבוססי פעילות אמיתית בקמפיינים, בוטים וארנק קהילה חי.
-              </p>
-            </div>
-          </div>
+    <header class="hero">
+        <div class="container text-center">
+            <h1>🌟 SLH Ecosystem — Investor Overview 2025 🌟</h1>
+            <p>The Next-Generation Financial, Commercial & Social Economic Engine<br>Built on Blockchain, AI, and Human Capital Protocol</p>
+            <a href="https://t.me/your_bot_username" class="btn btn-primary btn-lg">התחל השקעה דרך הבוט</a>
         </div>
-      </div>
-    </div>
-  </header>
+    </header>
 
-  <div class="divider"></div>
-
-  <!-- NAV -->
-  <nav class="container mb-4">
-    <ul class="nav nav-pills flex-wrap justify-content-center gap-2">
-      <li class="nav-item">
-        <a class="nav-link active" href="#exec-summary">1. Executive Summary</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#problem">2. Problem &amp; Solution</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#economic-model">3. Economic Model</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#products">4. Core Products</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#architecture">5. Technology</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#market">6–8. Market &amp; Model</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#roadmap">9. Roadmap</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#why-invest">10–11. Why Invest &amp; Ask</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="#closing">12. Closing</a>
-      </li>
-    </ul>
-  </nav>
-
-  <!-- CONTENT -->
-  <main class="container my-4">
-    <!-- 1. EXEC SUMMARY -->
-    <section id="exec-summary" class="section-card">
-      <h2 class="h4 mb-3">1. Executive Summary</h2>
-      <p>
-        <b>SLH Ecosystem</b> הוא אקו־סיסטם חדשני המאחד:
-      </p>
-      <ul>
-        <li>✓ פלטפורמות מסחר</li>
-        <li>✓ ארנק קריפטו חוצה-רשתות (BSC &amp; TON)</li>
-        <li>✓ מערכת תשלומים קהילתית</li>
-        <li>✓ חנות בוטים דיגיטלית אוטומטית</li>
-        <li>✓ אקדמיה למומחים עם תגמול אמיתי</li>
-        <li>✓ מערכת נקודות Pi Index הדומה ל-Pi Network</li>
-        <li>✓ עסקאות בנקאיות, NFT, וחוזים חכמים</li>
-        <li>✓ AI מתמטי ללימוד, ניהול הון, ואוטומציה</li>
-        <li>✓ תשתית רווח של 39 ש"ח למשתמש חדש</li>
-      </ul>
-      <p class="mt-3">
-        העיקרון המוביל:
-        <b>“Knowledge = Capital. Time = Currency.”</b>
-      </p>
-      <p>
-        המערכת מתגמלת מומחים, בעלי עסקים, מתכנתים ומשתמשים – כולם בתוך כלכלה אחת המאחדת
-        <b>Web2</b>, <b>Web3</b> ו־<b>AI</b>.
-      </p>
+    <section id="executive-summary" class="container my-5">
+        <h2>1. Executive Summary</h2>
+        <p>SLH Ecosystem הוא אקו־סיסטם חדשני המאחד: ✓ פלטפורמות מסחר ✓ ארנק קריפטו חוצה-רשתות (BSC & TON) ✓ מערכת תשלומים קהילתית ✓ חנות בוטים דיגיטלית אוטומטית ✓ אקדמיה למומחים עם תגמול אמיתי ✓ מערכת נקודות Pi Index הדומה ל-Pi Network ✓ עסקאות בנקאיות, NFT, וחוזים חכמים ✓ AI מתמטי ללימוד, ניהול הון, ואוטומציה ✓ תשתית רווח של 39 ש"ח למשתמש חדש</p>
+        <p>האקו־סיסטם מבוסס על העיקרון: “Knowledge = Capital. Time = Currency.”</p>
+        <p>המערכת מתגמלת מומחים, בעלי עסקים, מתכנתים ומשתמשים – כולם בתוך כלכלה אחת המאחדת Web2, Web3 ו-AI.</p>
     </section>
 
-    <!-- 2. PROBLEM -->
-    <section id="problem" class="section-card">
-      <h2 class="h4 mb-3">2. Problem SLH Solves</h2>
-      <p>העולם היום מפוצל ליותר מדי מערכות:</p>
-      <ul>
-        <li>ארנקים שונים (TON / BSC / ETH)</li>
-        <li>פלטפורמות מסחר נפרדות</li>
-        <li>תוכן ולמידה ללא מדד או תגמול</li>
-        <li>עורכי בוטים שונים ללא Marketplace</li>
-        <li>רשתות חברתיות שלא משתפות רווח עם המשתמשים</li>
-        <li>חסמי ידע גבוהים</li>
-        <li>חוסר אמון במודלים מסורתיים</li>
-      </ul>
-      <p class="mt-3">
-        <b>SLH</b> מאחדת הכל למערכת אקולוגית אחת:
-        <b>Blockchain + AI + Automation + Social Economy.</b>
-      </p>
+    <section id="problem" class="container my-5 bg-light p-4">
+        <h2>2. Problem SLH Solves</h2>
+        <p>העולם מפוצל ליותר מדי מערכות: * ארנקים שונים (TON/BSC/ETH) * פלטפורמות מסחר נפרדות * קורסים ולמידה ללא מדד או תגמול * עורכי בוטים שונים ללא Marketplace * רשתות חברתיות שלא משתפות רווח עם המשתמשים * חסמי ידע גבוהים * חוסר אמון במודלים מסורתיים</p>
+        <p>SLH מאחדת הכל למערכת אקולוגית אחת: Blockchain + AI + Automation + Social Economy.</p>
     </section>
 
-    <!-- 3. ECONOMIC MODEL -->
-    <section id="economic-model" class="section-card">
-      <h2 class="h4 mb-3">3. The SLH Economic Model</h2>
-      <h3 class="h5 mt-3 mb-2">3.1. Multi-Layer Value Engine</h3>
-
-      <h4 class="h6 mt-3">Community Wallet</h4>
-      <p>ארנק ב-BSC וב-TON המחזיק נכסי קהילה וכל עסקאות המשתמשים.</p>
-
-      <h4 class="h6 mt-3">SLH Token Utility</h4>
-      <ul>
-        <li>תשלומים</li>
-        <li>שכר למומחים</li>
-        <li>Airdrops</li>
-        <li>אחזקות קהילה</li>
-        <li>Marketplace</li>
-        <li>רווחי בוטים</li>
-        <li>שכר על ידע</li>
-      </ul>
-
-      <h4 class="h6 mt-3">Pi Index — Human Capital Protocol</h4>
-      <p>כמו Pi Network → אבל מודל אמיתי:</p>
-      <ul>
-        <li>כל אדם צובר נקודות על זמן, למידה, פעילות, פרויקטים</li>
-        <li>מומחים מקבלים “כח חלוקה” גבוה יותר</li>
-        <li>המערכת מלמדת את עצמה מי תורם הכי הרבה</li>
-        <li>ערך המטבע מנוהל לפי פעילות כלכלית אמיתית</li>
-      </ul>
-
-      <h4 class="h6 mt-3">E-Commerce Engine (Buy-My-Shop)</h4>
-      <ul>
-        <li>כל אדם מקבל חנות אישית</li>
-        <li>מכירות</li>
-        <li>עמלות</li>
-        <li>הפניות</li>
-        <li>מוצרים דיגיטליים</li>
-        <li>שירותים</li>
-      </ul>
-
-      <h4 class="h6 mt-3">AI + Bot Factory</h4>
-      <p>Marketplace לבניית בוטים, תוספים, ותהליכים אוטומטיים.</p>
+    <section id="economic-model" class="container my-5">
+        <h2>3. The SLH Economic Model</h2>
+        <h3>3.1. Multi-Layer Value Engine</h3>
+        <ol>
+            <li><strong>Community Wallet</strong>: ארנק ב-BSC וב-TON המחזיק נכסי קהילה וכל עסקאות המשתמשים.</li>
+            <li><strong>SLH Token Utility</strong>: תשלומים, שכר למומחים, Airdrops, אחזקות קהילה, Marketplace, רווחי בוטים, שכר על ידע.</li>
+            <li><strong>Pi Index — Human Capital Protocol</strong>: כמו Pi Network → אבל מודל אמיתי: כל אדם צובר נקודות על זמן, למידה, פעילות, פרויקטים. מומחים מקבלים “כח חלוקה” גבוה יותר. המערכת מלמדת את עצמה מי תורם הכי הרבה. ערך המטבע מנוהל לפי פעילות כלכלית אמיתית.</li>
+            <li><strong>E-Commerce Engine (Buy-My-Shop)</strong>: כל אדם מקבל חנות אישית. מכירות, עמלות, הפניות, מוצרים דיגיטליים, שירותים.</li>
+            <li><strong>AI + Bot Factory</strong>: Marketplace לבניית בוטים, תוספים, ותהליכים אוטומטיים.</li>
+        </ol>
     </section>
 
-    <!-- 4. CORE PRODUCTS -->
-    <section id="products" class="section-card">
-      <h2 class="h4 mb-3">4. Core Products</h2>
+    <section id="core-products" class="container my-5 bg-light p-4">
+        <h2>4. Core Products</h2>
+        <h3>4.1. SLH Wallet Bot (BSC + TON)</h3>
+        <ul>
+            <li>יצירת ארנק אוטומטית</li>
+            <li>צפייה ביתרות</li>
+            <li>המרת מטבעות</li>
+            <li>שליחה וקבלה</li>
+            <li>אינטגרציה ל-TON Trading Bot Pro</li>
+            <li>Webhooks ל-Railway + Koyeb</li>
+            <li>API מלא ליישומים נוספים</li>
+        </ul>
 
-      <h3 class="h5 mt-3">4.1. SLH Wallet Bot (BSC + TON)</h3>
-      <ul>
-        <li>יצירת ארנק אוטומטית</li>
-        <li>צפייה ביתרות</li>
-        <li>המרת מטבעות</li>
-        <li>שליחה וקבלה</li>
-        <li>אינטגרציה ל-TON Trading Bot Pro</li>
-        <li>Webhooks ל-Railway + Koyeb</li>
-        <li>API מלא ליישומים נוספים</li>
-      </ul>
+        <h3>4.2. TON Trading Bot Pro</h3>
+        <ul>
+            <li>ניתוחים חכמים ל-TON</li>
+            <li>חיבור לארנק</li>
+            <li>איתותים לפי Symbol</li>
+            <li>חזוי תנועות</li>
+            <li>שירות בתשלום / מנוי</li>
+        </ul>
 
-      <h3 class="h5 mt-3">4.2. TON Trading Bot Pro</h3>
-      <ul>
-        <li>ניתוחים חכמים ל-TON</li>
-        <li>חיבור לארנק</li>
-        <li>איתותים לפי Symbol</li>
-        <li>חזוי תנועות</li>
-        <li>שירות בתשלום / מנוי</li>
-      </ul>
+        <h3>4.3. BotShop Marketplace</h3>
+        <ul>
+            <li>יצירת בוטים בקליק</li>
+            <li>מכירת בוטים ב-39 ש"ח (כרטיס כניסה לקהילה)</li>
+            <li>מעקב אחרי כל ליד שמגיע ממודעות</li>
+            <li>מערכת הפניות מלאה</li>
+            <li>תבניות מוכנות</li>
+        </ul>
 
-      <h3 class="h5 mt-3">4.3. BotShop Marketplace</h3>
-      <ul>
-        <li>יצירת בוטים בקליק</li>
-        <li>מכירת בוטים ב-39 ש"ח (כרטיס כניסה לקהילה)</li>
-        <li>מעקב אחרי כל ליד שמגיע ממודעות</li>
-        <li>מערכת הפניות מלאה</li>
-        <li>תבניות מוכנות</li>
-      </ul>
+        <h3>4.4. SLH Academy — Expert Economy</h3>
+        <p>מערכת בה כל מומחה פותח “כיתה דיגיטלית”. תלמידים מצטרפים. מומחים מקבלים כח חלוקה גבוה יותר. התלמידים מקבלים נקודות Pi. הכל מנוהל דרך חוזים חכמים ונקודות זמן.</p>
 
-      <h3 class="h5 mt-3">4.4. SLH Academy — Expert Economy</h3>
-      <ul>
-        <li>מערכת בה כל מומחה פותח “כיתה דיגיטלית”</li>
-        <li>תלמידים מצטרפים</li>
-        <li>מומחים מקבלים כח חלוקה גבוה יותר</li>
-        <li>התלמידים מקבלים נקודות Pi</li>
-        <li>הכל מנוהל דרך חוזים חכמים ונקודות זמן</li>
-      </ul>
-
-      <h3 class="h5 mt-3">4.5. SLH Web App (GitHub Pages + API)</h3>
-      <ul>
-        <li>אתר בכרטיס אחד</li>
-        <li>הצגת ארנק קהילה</li>
-        <li>Dashboard למשתמש</li>
-        <li>מסחר, תוכן, בוטים</li>
-        <li>התחברות באמצעות Telegram</li>
-      </ul>
+        <h3>4.5. SLH Web App (GitHub Pages + API)</h3>
+        <ul>
+            <li>אתר בכרטיס אחד</li>
+            <li>הצגת ארנק קהילה</li>
+            <li>Dashboard למשתמש</li>
+            <li>מסחר, קורסים, בוטים</li>
+            <li>התחברות באמצעות Telegram</li>
+        </ul>
     </section>
 
-    <!-- 5. ARCHITECTURE -->
-    <section id="architecture" class="section-card">
-      <h2 class="h4 mb-3">5. Technology Architecture</h2>
-
-      <h3 class="h5 mt-3">5.1 Microservices</h3>
-      <p>כל המערכת מבוססת פיצול שירותים מלא:</p>
-      <pre class="bg-dark text-light p-3 rounded" style="font-size: 0.85rem;">
-S:\SLH_ECOSYSTEM\
+    <section id="technology" class="container my-5">
+        <h2>5. Technology Architecture</h2>
+        <h3>5.1 Microservices</h3>
+        <p>כל המערכת מבוססת פיצול שירותים מלא:</p>
+        <pre>S:\SLH_ECOSYSTEM\
   ├─ services\
   │    ├─ slh-wallet-bot
   │    ├─ ton-trading-bot
@@ -296,196 +110,86 @@ S:\SLH_ECOSYSTEM\
   │    ├─ casino-backend
   │    ├─ gateway-api
   │    ├─ slh-web
-  │    └─ database-service
-      </pre>
-      <p><b>Backend</b> מבוזר עם:</p>
-      <ul>
-        <li>FastAPI / Node.js</li>
-        <li>Telegram Bots</li>
-        <li>Smart Contracts</li>
-        <li>Webhooks</li>
-        <li>Docker Containers</li>
-        <li>Railway + Koyeb Deployments</li>
-        <li>PostgreSQL primary database</li>
-      </ul>
+  │    └─ database-service</pre>
+        <p>Backend מבוזר עם: FastAPI / Node.js, Telegram Bots, Smart Contracts, Webhooks, Docker Containers, Railway + Koyeb Deployments, PostgreSQL primary database.</p>
 
-      <h3 class="h5 mt-3">5.2 Blockchain Layer</h3>
-      <ul>
-        <li>BSC Smart Contract – SLH, SELA</li>
-        <li>TON Wallet Integration</li>
-        <li>Multi-Chain Balance Fetch</li>
-        <li>NFT Contracts למומחים ולתלמידים</li>
-      </ul>
+        <h3>5.2 Blockchain Layer</h3>
+        <ul>
+            <li>BSC Smart Contract – SLH, SELA</li>
+            <li>TON Wallet Integration</li>
+            <li>Multi-Chain Balance Fetch</li>
+            <li>NFT Contracts למומחים ולתלמידים</li>
+        </ul>
 
-      <h3 class="h5 mt-3">5.3 AI Layer</h3>
-      <ul>
-        <li>מנועי חיזוי</li>
-        <li>ניתוח סמנטי</li>
-        <li>תיוג משתמשים</li>
-        <li>המלצות למומחים</li>
-        <li>AI למודל Pi Index</li>
-      </ul>
+        <h3>5.3 AI Layer</h3>
+        <ul>
+            <li>מנועי חיזוי</li>
+            <li>ניתוח סמנטי</li>
+            <li>תיוג משתמשים</li>
+            <li>המלצות למומחים</li>
+            <li>AI למודל Pi Index</li>
+        </ul>
     </section>
 
-    <!-- 6–8. MARKET, TRACTION, BUSINESS MODEL -->
-    <section id="market" class="section-card">
-      <h2 class="h4 mb-3">6. Market Opportunity</h2>
-      <p>השוק המשוער:</p>
-      <ul>
-        <li>שירותי בוטים: $5B</li>
-        <li>אקדמיות דיגיטליות: $200B</li>
-        <li>SocialFi: $50B</li>
-        <li>Web3 Wallets: $3.1B</li>
-        <li>AI Automation: $190B</li>
-      </ul>
-      <p><b>SLH</b> ממזגת את כל החלקים האלו למוצר אחד.</p>
-      <p class="mt-3"><b>יתרון תחרותי:</b></p>
-      <ul>
-        <li>פלטפורמת בוטים יחידה במינה</li>
-        <li>תשלום כניסה של 39 ש"ח → Scale אמיתי</li>
-        <li>מומחים מקבלים מערכת חלוקה עוצמתית</li>
-        <li>טוקן שימושי (Utility) אמיתי</li>
-        <li>מערכת מסחר ומטבעות רב-שכבתית</li>
-        <li>הגדרות מערכת של "מינימום frictions"</li>
-      </ul>
-
-      <h3 class="h5 mt-4">7. Traction & KPIs</h3>
-      <ul>
-        <li>✓ 60 לידים ביום מפרסום</li>
-        <li>✓ עשרות משתמשים פעילים</li>
-        <li>✓ ארנק קהילה חי</li>
-        <li>✓ בוטים ריאליים עובדים</li>
-        <li>✓ מערכת TON ↔ SLH</li>
-        <li>✓ תשתית API יציבה</li>
-        <li>✓ Marketplace בתנועה</li>
-        <li>✓ משתמשים משלמים</li>
-        <li>✓ שרתים בענן פעילים</li>
-      </ul>
-
-      <h3 class="h5 mt-4">8. Business Model</h3>
-      <ol>
-        <li>
-          <b>תשלום חד-פעמי להצטרפות — 39 ש"ח</b><br />
-          נותן גישה לבוטים, ארנק, Marketplace, אקדמיה.
-        </li>
-        <li><b>מכירת בוטים ושירותים</b> — 10–120 ש"ח לבוט</li>
-        <li><b>מנויים חודשיים</b> — Trading Pro, AI Pro, תוכן</li>
-        <li><b>עמלות Marketplace</b> — 10–20%</li>
-        <li>
-          <b>מודל מומחים</b> — המומחים קונים “כח חלוקה” נוסף, התלמידים מניבים להם רווח מה-Pi Index.
-        </li>
-        <li>
-          <b>Tokenomics</b> — שימוש אמיתי, יעדי רשת, ריבוי פיצ'רים.
-        </li>
-      </ol>
+    <section id="market" class="container my-5 bg-light p-4">
+        <h2>6. Market Opportunity</h2>
+        <p>השוק: שירותי בוטים: $5B, אקדמיות דיגיטליות: $200B, SocialFi: $50B, Web3 Wallets: $3.1B, AI Automation: $190B. SLH ממזגת את כל החלקים האלו למוצר אחד.</p>
+        <p>יתרון תחרותי: פלטפורמת בוטים יחידה במינה, תשלום כניסה של 39 ש"ח → Scale אמיתי, מומחים מקבלים מערכת חלוקה עוצמתית, טוקן שימושי (Utility) אמיתי, מערכת מסחר ומטבעות רב-שכבתית, הגדרות מערכת של "מינימום frictions".</p>
     </section>
 
-    <!-- 9. ROADMAP -->
-    <section id="roadmap" class="section-card">
-      <h2 class="h4 mb-3">9. Roadmap 2025–2026</h2>
-      <h3 class="h6 mt-3">Q1 2025</h3>
-      <ul>
-        <li>✔ ארנק SLH</li>
-        <li>✔ TON-BSC Trading</li>
-        <li>✔ BotShop</li>
-        <li>✔ מערכת הפניות</li>
-        <li>✔ Pi Index v1</li>
-      </ul>
-
-      <h3 class="h6 mt-3">Q2 2025</h3>
-      <ul>
-        <li>– אקדמיית מומחים</li>
-        <li>– NFT Identity</li>
-        <li>– SLH Web App v2</li>
-        <li>– Dashboard מלא</li>
-      </ul>
-
-      <h3 class="h6 mt-3">Q3 2025</h3>
-      <ul>
-        <li>– SLH Exchange (Mini)</li>
-        <li>– Staking Pools</li>
-        <li>– Token Upgrade to v2</li>
-        <li>– Multi-Chain Expansion</li>
-      </ul>
-
-      <h3 class="h6 mt-3">Q4 2025</h3>
-      <ul>
-        <li>– SLH Super-App</li>
-        <li>– Marketplace חוצה רשתות</li>
-        <li>– חיבור בנקאי</li>
-        <li>– AI Guardian</li>
-      </ul>
+    <section id="traction" class="container my-5">
+        <h2>7. Traction & KPIs</h2>
+        <p>כבר היום: ✓ 60 לידים ביום מפרסום ✓ עשרות משתמשים פעילים ✓ ארנק קהילה חי ✓ בוטים ריאליים עובדים ✓ מערכת TON ↔ SLH ✓ תשתית API יציבה ✓ Marketplace בתנועה ✓ משתמשים משלמים ✓ שרתים בענן פעילים</p>
     </section>
 
-    <!-- 10–11. WHY INVEST & ASK -->
-    <section id="why-invest" class="section-card">
-      <h2 class="h4 mb-3">10. Why Invest in SLH?</h2>
-      <ul>
-        <li>מערכת עובדת כבר עכשיו</li>
-        <li>מודל הכנסה מוכח (39 ש"ח + Marketplace)</li>
-        <li>טכנולוגיה חדשנית וצוות טכני חזק</li>
-        <li>משתמשים אמיתיים + לידים פעילים</li>
-        <li>שילוב של AI + Blockchain + Social Economy</li>
-        <li>יתרון שוק ברור (אף מתחרה לא מאחד הכל)</li>
-        <li>חזון ארוך טווח עם אחיזה בשטח</li>
-      </ul>
-
-      <h3 class="h5 mt-4">11. Ask (הצעת השקעה)</h3>
-      <p><b>בקשה:</b></p>
-      <ul>
-        <li>🔵 השקעה בסך: <b>$150K – $350K</b></li>
-        <li>🔵 בתמורה ל־<b>10–20%</b></li>
-        <li>🔵 מיועדת ל:
-          <ul>
-            <li>הרחבת ה-AI engine</li>
-            <li>ניהול שרתים וחוזים</li>
-            <li>השקת האקדמיה</li>
-            <li>יצירת Exchange מינימלי</li>
-            <li>פרסום וחדירה לשוק בינ"ל</li>
-          </ul>
-        </li>
-      </ul>
+    <section id="business-model" class="container my-5 bg-light p-4">
+        <h2>8. Business Model</h2>
+        <ol>
+            <li>תשלום חד-פעמי להצטרפות בסיסית— 39 ש"ח: נותן גישה לבוטים, ארנק, Marketplace, אקדמיה.</li>
+            <li>מכירת בוטים ושירותים: 39–40,000 ש"ח לבוטים ומערכות שונות קשורות.</li>
+            <li>מנויים חודשיים: Trading Pro, AI Pro, Courses, Subscribers, and more.</li>
+            <li>עמלות Marketplace: 1–2%.</li>
+            <li>מודל מומחים: המומחים קונים “כח חלוקה” נוסף, התלמידים מניבים להם רווח מה-Pi Index.</li>
+            <li>Tokenomics: שימוש אמיתי, יעדי רשת, ריבוי פיצ'רים.</li>
+        </ol>
     </section>
 
-    <!-- 12. CLOSING -->
-    <section id="closing" class="section-card">
-      <h2 class="h4 mb-3">12. Closing Statement</h2>
-      <p>
-        <b>SLH</b> מייצרת מהפכה:
-      </p>
-      <ul>
-        <li>✓ כלכלה חדשה</li>
-        <li>✓ מבוססת על ידע</li>
-        <li>✓ מתוגמלת על זמן</li>
-        <li>✓ ומופעלת ע"י בינה מלאכותית ובוטים</li>
-        <li>✓ בתוך מערכת קהילתית שיוצרת הכנסה אמיתית לכל משתתף</li>
-      </ul>
-      <p class="mt-3">
-        זהו העתיד של <b>Social-Finance + Learning + Automation.</b><br />
-        משקיע שמצטרף עכשיו — נכנס לליבה של הכלכלה הבאה.
-      </p>
-      <p id="contact" class="mt-3">
-        לשאלות, חיבורים והשקעות:
-        <br />
-        📩 <b>טלגרם:</b> <a href="https://t.me/ICQ2_bot">@ICQ2_bot</a><br />
-        💻 <b>GitHub:</b> <a href="https://github.com/osifeu-prog/PROMO">osifeu-prog/PROMO</a>
-      </p>
+    <section id="roadmap" class="container my-5">
+        <h2>9. Roadmap 2025–2026</h2>
+        <p>Q1 2025: ✔ ארנק SLH ✔ TON-BSC Trading ✔ BotShop ✔ מערכת הפניות ✔ Pi Index v1</p>
+        <p>Q2 2025: – אקדמיית מומחים – NFT Identity – SLH Web App v2 – Dashboard מלא</p>
+        <p>Q3 2025: – SLH Exchange (Mini) – Staking Pools – Token Upgrade to v2 – Multi-Chain Expansion</p>
+        <p>Q4 2025: – SLH Super-App – Marketplace חוצה רשתות – חיבור בנקאי – AI Guardian</p>
     </section>
-  </main>
 
-  <!-- FOOTER -->
-  <footer class="text-center py-4">
-    <p class="mb-1">
-      &copy; 2025 SLH / SELA – Human Capital Protocol.
-    </p>
-    <p style="font-size: 0.85rem; opacity: 0.7">
-      דף משקיעים זה מבוסס על ארכיטקטורת המערכת, הבוטים והארנק הקיימים בפועל,
-      ונועד ליצור חיבור ישיר בין משקיעים לבין ליבת האקוסיסטם.
-    </p>
-  </footer>
+    <section id="why-invest" class="container my-5 bg-light p-4">
+        <h2>10. Why Invest in SLH?</h2>
+        <ul>
+            <li>מערכת עובדת כבר עכשיו</li>
+            <li>מודל הכנסה מוכח (39 ש"ח + Marketplace)</li>
+            <li>טכנולוגיה חדשנית וצוות טכני חזק</li>
+            <li>משתמשים אמיתיים + לידים פעילים</li>
+            <li>שילוב של AI + Blockchain + Social Economy</li>
+            <li>יתרון שוק ברור (אף מתחרה לא מאחד הכל)</li>
+            <li>חזון ארוך טווח עם אחיזה בשטח</li>
+        </ul>
+    </section>
 
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="scripts.js"></script>
+    <section id="ask" class="container my-5">
+        <h2>11. Ask (הצעת השקעה)</h2>
+        <p>בקשה: 🔵 השקעה בסך: $4M 🔵 בתמורה ל-15%, מתוך רווחי החברה למשקיעים בפרויקט. 🔵 מיועדת ל: הרחבת ה-AI engine, ניהול שרתים וחוזים, השקת האקדמיה, יצירת Exchange, פרסום וחדירה לשוק בינ"ל</p>
+    </section>
+
+    <section id="closing" class="container my-5">
+        <h2>12. Closing Statement</h2>
+        <p>SLH מייצרת מהפכה: ✓ כלכלה חדשה ✓ מבוססת על ידע ✓ מתוגמלת על זמן ✓ ומופעלת ע"י בינה מלאכותית ובוטים ✓ בתוך מערכת קהילתית שיוצרת הכנסה אמיתית לכל משתתף. זהו העתיד של Social-Finance + Learning + Automation. משקיע שמצטרף עכשיו — נכנס לליבה של הכלכלה הבאה.</p>
+        <a href="https://t.me/your_bot_username" class="btn btn-success btn-lg">הצטרף להשקעה עכשיו!</a>
+    </section>
+
+    <footer class="text-center py-3">
+        <p>&copy; 2025 SLH. כל הזכויות שמורות. <a href="https://t.me/your_bot_username">חזור לבוט</a></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
