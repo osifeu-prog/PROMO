@@ -17,10 +17,9 @@ from app.database import get_db
 from app.crud import (
     get_user_by_telegram_id, create_user, make_admin, 
     create_portfolio, create_transaction, get_user_transactions,
-    update_user, verify_admin_password
+    update_user
 )
-from app.schemas import UserCreate, PortfolioCreate, TransactionCreate
-from app.models import User
+from app.schemas import UserCreate, PortfolioCreate
 
 # לוגים
 logger = logging.getLogger(__name__)
@@ -29,7 +28,6 @@ logger = logging.getLogger(__name__)
 ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", 0))
 PAYMENT_GROUP_ID = int(os.environ.get("PAYMENT_GROUP_ID", 0))
 COMMUNITY_GROUP_ID = int(os.environ.get("COMMUNITY_GROUP_ID", 0))
-SITE_URL = os.environ.get("SITE_URL", "https://yourusername.github.io/repo/")
 DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "secure_admin_password_123")
 
 # קישורים מוגדרים מראש
@@ -39,7 +37,6 @@ LINKS = [
     {"title": "NFTY_madness_bot", "url": "https://t.me/NFTY_madness_bot"},
     {"title": "קבוצת קהילת הבורסה", "url": "https://t.me/+HIzvM8sEgh1kNWY0"},
     {"title": "crypto_A_bot", "url": "https://t.me/crypto_A_bot"},
-    {"title": "אתר ראשי: SLH", "url": SITE_URL},
     {"title": "SLH_Academia_bot", "url": "https://t.me/SLH_Academia_bot"},
     {"title": "YouTube Channel", "url": "https://www.youtube.com/channel/UC..."},
 ]
@@ -64,11 +61,6 @@ class Callback(str, Enum):
     INVEST_NOW = "invest_now"
     INVEST_PANEL = "invest_panel"
     BACK_TO_MAIN = "back_to_main"
-    ADMIN_UPDATE_CONTENT = "admin_update_content"
-    ADMIN_ADD_LINK = "admin_add_link"
-    ADMIN_MANAGE_USERS = "admin_manage_users"
-    ADMIN_APPROVE_INVESTMENTS = "admin_approve_investments"
-    ADMIN_CHANGE_PASSWORD = "admin_change_password"
 
 def setup_handlers(ptb: Application) -> None:
     """הגדרת כל ה-handlers של הבוט"""
@@ -97,7 +89,6 @@ def build_main_menu() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🎮 משחקים ו-NFT", callback_data=Callback.GAMES)],
         [InlineKeyboardButton("🧑‍💼 מערכת מומחים", callback_data=Callback.EXPERTS)],
         [InlineKeyboardButton("📈 השקעות כבדות", callback_data=Callback.INVEST)],
-        [InlineKeyboardButton("🔗 בקר באתר", url=SITE_URL)],
     ]
     
     # כפתורי אדמין - מוצגים רק למנהלים
@@ -115,18 +106,6 @@ def build_back_button() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[
         InlineKeyboardButton("🔙 חזרה לתפריט הראשי", callback_data=Callback.BACK_TO_MAIN)
     ]])
-
-def build_admin_menu() -> InlineKeyboardMarkup:
-    """פאנל אדמין"""
-    keyboard = [
-        [InlineKeyboardButton("📝 עדכן תוכן", callback_data=Callback.ADMIN_UPDATE_CONTENT)],
-        [InlineKeyboardButton("🔗 הוסף קישור", callback_data=Callback.ADMIN_ADD_LINK)],
-        [InlineKeyboardButton("👥 נהל משתמשים", callback_data=Callback.ADMIN_MANAGE_USERS)],
-        [InlineKeyboardButton("✅ אשר השקעות", callback_data=Callback.ADMIN_APPROVE_INVESTMENTS)],
-        [InlineKeyboardButton("🔐 שנה סיסמה", callback_data=Callback.ADMIN_CHANGE_PASSWORD)],
-        [InlineKeyboardButton("🔙 חזרה", callback_data=Callback.BACK_TO_MAIN)],
-    ]
-    return InlineKeyboardMarkup(keyboard)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler לפקודת /start"""
@@ -182,7 +161,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """Handler לכל ה-callbacks"""
     try:
         query = update.callback_query
-        await query.answer()  # מסיר את ה-"loading" state
+        await query.answer()
         
         data = query.data
         user_id = query.from_user.id
@@ -192,7 +171,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         db = next(get_db())
         user = get_user_by_telegram_id(db, user_id)
         
-        # מיפוי handlers ל-callbacks
         handlers = {
             Callback.ABOUT: handle_about,
             Callback.CONTENT: handle_content,
@@ -205,11 +183,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             Callback.ADMIN: handle_admin,
             Callback.REQUEST_ADMIN: handle_request_admin,
             Callback.BACK_TO_MAIN: handle_back_to_main,
-            Callback.ADMIN_UPDATE_CONTENT: handle_admin_update_content,
-            Callback.ADMIN_ADD_LINK: handle_admin_add_link,
-            Callback.ADMIN_MANAGE_USERS: handle_admin_manage_users,
-            Callback.ADMIN_APPROVE_INVESTMENTS: handle_admin_approve_investments,
-            Callback.ADMIN_CHANGE_PASSWORD: handle_admin_change_password,
         }
         
         handler = handlers.get(data)
@@ -234,22 +207,18 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def handle_about(query, context, db, user):
     """טיפול באודות"""
     try:
-        about_file = Path("docs/about.md")
-        if about_file.exists():
-            about_text = about_file.read_text(encoding="utf-8")
-        else:
-            about_text = """
-            🌐 **אודות SLH - Smart Life Hub**
-            
-            אקוסיסטם דיגיטלי מבוסס AI המשלב:
-            • 📚 אקדמיה לפיננסים וכלכלה
-            • 💰 מסחר ומטבעות דיגיטליים
-            • 🎮 משחקי NFT וארקייד
-            • 🤖 מערכת מומחים חכמה
-            • 📈 פלטפורמת השקעות מתקדמת
-            
-            הצטרפו למהפכה הכלכלית!
-            """
+        about_text = """
+        🌐 **אודות SLH - Smart Life Hub**
+        
+        אקוסיסטם דיגיטלי מבוסס AI המשלב:
+        • 📚 אקדמיה לפיננסים וכלכלה
+        • 💰 מסחר ומטבעות דיגיטליים
+        • 🎮 משחקי NFT וארקייד
+        • 🤖 מערכת מומחים חכמה
+        • 📈 פלטפורמת השקעות מתקדמת
+        
+        הצטרפו למהפכה הכלכלית!
+        """
         
         await query.edit_message_text(
             about_text,
@@ -335,7 +304,7 @@ async def handle_invest(query, context, db, user):
     text = """
     📈 **השקעות כבדות**
     
-    תוכנית גיוס 10 מיליון ש\"ח עם:
+    תוכנית גיוס 10 מיליון ש"ח עם:
     • דיבידנטים ושותפות מלאה
     • שקיפות מלאה בעסקאות
     • חוזים חכמים מאובטחים
@@ -355,13 +324,13 @@ async def handle_invest_now(query, context, db, user):
     text = """
     💼 **השקעה כבדה - צור קשר**
     
-    לפרטים והשקעה (מ-10,000 ש\"ח):
+    לפרטים והשקעה (מ-10,000 ש"ח):
     1. שלחו סכום ופרטים אישיים
     2. קבלו אישור חוזה חכם
     3. הצטרפו לקבוצת התשלומים
     4. התחילו לקבל דיבידנטים
     
-    📞 לפניה: @SLH_Investment_Bot
+    📞 לפניה: @ICQ2_bot
     """
     await query.edit_message_text(text, reply_markup=build_back_button(), parse_mode='Markdown')
 
@@ -402,10 +371,10 @@ async def handle_admin(query, context, db, user):
     • אישור השקעות ועסקאות
     • דוחות וסטטיסטיקות
     
-    🛠️ בחר פעולה לניהול:
+    🛠️ פונקציות ניהול זמינות דרך הפקודות.
     """
     
-    await query.edit_message_text(text, reply_markup=build_admin_menu(), parse_mode='Markdown')
+    await query.edit_message_text(text, reply_markup=build_back_button(), parse_mode='Markdown')
 
 async def handle_request_admin(query, context, db, user):
     """בקשת הרשאות אדמין"""
@@ -416,7 +385,7 @@ async def handle_request_admin(query, context, db, user):
     נציג יחזור אליך בהקדם לדיון
     בחוזה חכם והגדרת הרשאות.
     
-    📧 לדיון מהיר: @SLH_Admin_Bot
+    📧 לדיון מהיר: @ICQ2_bot
     """
     
     try:
@@ -434,22 +403,6 @@ async def handle_back_to_main(query, context, db, user):
         "גלה את העתיד הכלכלי: SLH – אקוסיסטם AI מבוסס אמון!",
         reply_markup=build_main_menu()
     )
-
-# Admin handlers
-async def handle_admin_update_content(query, context, db, user):
-    await query.edit_message_text("📝 פאנל עדכון תוכן - בפיתוח...", reply_markup=build_admin_menu())
-
-async def handle_admin_add_link(query, context, db, user):
-    await query.edit_message_text("🔗 פאנל הוספת קישורים - בפיתוח...", reply_markup=build_admin_menu())
-
-async def handle_admin_manage_users(query, context, db, user):
-    await query.edit_message_text("👥 פאנל ניהול משתמשים - בפיתוח...", reply_markup=build_admin_menu())
-
-async def handle_admin_approve_investments(query, context, db, user):
-    await query.edit_message_text("✅ פאנל אישור השקעות - בפיתוח...", reply_markup=build_admin_menu())
-
-async def handle_admin_change_password(query, context, db, user):
-    await query.edit_message_text("🔐 פאנל שינוי סיסמה - בפיתוח...", reply_markup=build_admin_menu())
 
 async def admin_login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """התחברות כאדמין"""
@@ -489,7 +442,7 @@ async def request_admin_command(update: Update, context: ContextTypes.DEFAULT_TY
         נציג יחזור אליך בהקדם לדיון
         בחוזה חכם והגדרת הרשאות.
         
-        📧 לדיון מהיר: @SLH_Admin_Bot
+        📧 לדיון מהיר: @ICQ2_bot
         """
         
         try:
