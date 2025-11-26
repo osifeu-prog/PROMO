@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
         await ptb_app.initialize()
         logger.info("✅ Telegram application initialized")
 
-        # הגדרת webhook
+        # הגדרת webhook עם ניסיונות חוזרים
         hook_url = f"{settings.webhook_url.rstrip('/')}/{settings.bot_token}"
         
         logger.info(f"🔄 Setting webhook to: {hook_url}")
