@@ -54,7 +54,7 @@ class Portfolio(Base):
     
     title = Column(String(200), nullable=True)
     description = Column(Text, nullable=True)
-    links = Column(JSON, nullable=True)  # [{url: "", label: ""}]
+    links = Column(JSON, nullable=True)
     status = Column(String(50), default="draft")
     
     created_at = Column(DateTime, server_default=func.now())
