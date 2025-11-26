@@ -122,33 +122,6 @@ def get_users_count(db: Session) -> int:
         logger.error(f"Error getting users count: {e}")
         return 0
 
-# ========= PORTFOLIO CRUD =========
-def create_portfolio(db: Session, portfolio_data: PortfolioCreate, user_id: int) -> Optional[Portfolio]:
-    """יוצר פורטפוליו חדש"""
-    try:
-        db_portfolio = Portfolio(
-            **portfolio_data.model_dump(),
-            user_id=user_id
-        )
-        
-        db.add(db_portfolio)
-        db.commit()
-        db.refresh(db_portfolio)
-        logger.info(f"Created portfolio for user {user_id}")
-        return db_portfolio
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error creating portfolio for user {user_id}: {e}")
-        return None
-
-def get_user_portfolios(db: Session, user_id: int) -> List[Portfolio]:
-    """מחזיר את כל הפורטפוליו של משתמש"""
-    try:
-        return db.query(Portfolio).filter(Portfolio.user_id == user_id).order_by(Portfolio.created_at.desc()).all()
-    except SQLAlchemyError as e:
-        logger.error(f"Error getting portfolios for user {user_id}: {e}")
-        return []
-
 # ========= TRANSACTION CRUD =========
 def create_transaction(db: Session, user_id: int, amount: float, 
                       transaction_type: str = "payment", 
@@ -190,42 +163,18 @@ def get_user_transactions(db: Session, user_id: int, limit: int = 50) -> List[Tr
         logger.error(f"Error getting transactions for user {user_id}: {e}")
         return []
 
-# ========= CONTENT CRUD =========
-def create_content(db: Session, content_data: ContentCreate) -> Optional[Content]:
-    """יוצר תוכן חדש"""
-    try:
-        db_content = Content(**content_data.model_dump())
-        db.add(db_content)
-        db.commit()
-        db.refresh(db_content)
-        logger.info(f"Created content: {content_data.title}")
-        return db_content
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error creating content: {e}")
-        return None
-
-def get_published_content(db: Session, category: Optional[str] = None) -> List[Content]:
-    """מחזיר תוכן שפורסם"""
-    try:
-        query = db.query(Content).filter(Content.is_published == True)
-        if category:
-            query = query.filter(Content.category == category)
-        return query.order_by(Content.order_index, Content.created_at.desc()).all()
-    except SQLAlchemyError as e:
-        logger.error(f"Error getting published content: {e}")
-        return []
-
 # ========= STATISTICS =========
 def get_stats(db: Session) -> Dict[str, Any]:
     """מחזיר סטטיסטיקות כלליות"""
     try:
         total_users = db.query(User).count()
         total_transactions = db.query(Transaction).count()
-        total_portfolios = db.query(Portfolio).count()
-        total_revenue = db.query(db.func.sum(Transaction.amount)).filter(
+        
+        # חישוב הכנסות רק מעסקאות שהצליחו
+        revenue_result = db.query(db.func.sum(Transaction.amount)).filter(
             Transaction.status == 'completed'
-        ).scalar() or 0
+        ).scalar()
+        total_revenue = float(revenue_result) if revenue_result else 0.0
         
         pending_transactions = db.query(Transaction).filter(
             Transaction.status == 'pending'
@@ -235,19 +184,20 @@ def get_stats(db: Session) -> Dict[str, Any]:
             Transaction.status == 'completed'
         ).count()
         
-        avg_transaction = db.query(db.func.avg(Transaction.amount)).filter(
+        # ממוצע עסקה
+        avg_result = db.query(db.func.avg(Transaction.amount)).filter(
             Transaction.status == 'completed'
-        ).scalar() or 0
+        ).scalar()
+        avg_transaction = float(avg_result) if avg_result else 0.0
         
         return {
             "total_users": total_users,
             "total_transactions": total_transactions,
-            "total_portfolios": total_portfolios,
-            "total_revenue": float(total_revenue),
+            "total_revenue": total_revenue,
             "active_users": db.query(User).filter(User.active_sessions > 0).count(),
             "pending_transactions": pending_transactions,
             "completed_transactions": completed_transactions,
-            "average_transaction": float(avg_transaction)
+            "average_transaction": avg_transaction
         }
     except SQLAlchemyError as e:
         logger.error(f"Error getting stats: {e}")
