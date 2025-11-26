@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from decimal import Decimal
 from enum import Enum
 
 class TransactionStatus(str, Enum):
@@ -48,14 +47,6 @@ class UserOut(UserBase):
     last_seen: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
-
-class AdminCreate(BaseModel):
-    telegram_id: int
-    password: str = Field(..., min_length=6, description="Admin password")
-
-class AdminLogin(BaseModel):
-    telegram_id: int
-    password: str
 
 # ========= PORTFOLIO SCHEMAS =========
 
@@ -146,23 +137,6 @@ class TransactionOut(TransactionBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ========= LINK SCHEMAS =========
-
-class LinkBase(BaseModel):
-    url: str = Field(..., description="Link URL")
-    label: Optional[str] = Field(None, description="Link label")
-    link_type: Optional[str] = Field("general", description="Type of link")
-
-class LinkCreate(LinkBase):
-    pass
-
-class LinkOut(LinkBase):
-    id: int
-    user_id: Optional[int] = None
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
 # ========= STATISTICS SCHEMAS =========
 
 class StatsOut(BaseModel):
@@ -179,17 +153,6 @@ class StatsOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ========= HEALTH CHECK SCHEMAS =========
-
-class HealthCheck(BaseModel):
-    status: str
-    timestamp: float
-    version: str
-    environment: str
-    database: str
-    telegram_bot: str
-    bot_username: Optional[str] = None
-
 # ========= API RESPONSE SCHEMAS =========
 
 class APIResponse(BaseModel):
@@ -201,22 +164,3 @@ class ErrorResponse(BaseModel):
     success: bool = False
     error: str
     details: Optional[Dict[str, Any]] = None
-
-# ========= TELEGRAM WEBHOOK SCHEMAS =========
-
-class TelegramWebhook(BaseModel):
-    update_id: int
-    message: Optional[Dict[str, Any]] = None
-    edited_message: Optional[Dict[str, Any]] = None
-    channel_post: Optional[Dict[str, Any]] = None
-    edited_channel_post: Optional[Dict[str, Any]] = None
-    inline_query: Optional[Dict[str, Any]] = None
-    chosen_inline_result: Optional[Dict[str, Any]] = None
-    callback_query: Optional[Dict[str, Any]] = None
-    shipping_query: Optional[Dict[str, Any]] = None
-    pre_checkout_query: Optional[Dict[str, Any]] = None
-    poll: Optional[Dict[str, Any]] = None
-    poll_answer: Optional[Dict[str, Any]] = None
-    my_chat_member: Optional[Dict[str, Any]] = None
-    chat_member: Optional[Dict[str, Any]] = None
-    chat_join_request: Optional[Dict[str, Any]] = None
