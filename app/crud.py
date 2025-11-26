@@ -27,21 +27,13 @@ def get_user_by_telegram_id(db: Session, telegram_id: int) -> Optional[User]:
         logger.error(f"Error getting user by telegram_id {telegram_id}: {e}")
         return None
 
-def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
-    """מחזיר משתמש לפי ID"""
-    try:
-        return db.query(User).filter(User.id == user_id).first()
-    except SQLAlchemyError as e:
-        logger.error(f"Error getting user by id {user_id}: {e}")
-        return None
-
 def create_user(db: Session, user_data: UserCreate) -> Optional[User]:
-    """יוצר משתמש חדש עם טיפול בשגיאות"""
+    """יוצר משתמש חדש"""
     try:
         # בדיקה אם המשתמש כבר קיים
         existing_user = get_user_by_telegram_id(db, user_data.telegram_id)
         if existing_user:
-            logger.warning(f"User with telegram_id {user_data.telegram_id} already exists")
+            logger.info(f"User {user_data.telegram_id} already exists")
             return existing_user
         
         db_user = User(
@@ -58,7 +50,7 @@ def create_user(db: Session, user_data: UserCreate) -> Optional[User]:
         return db_user
     except IntegrityError:
         db.rollback()
-        logger.warning(f"User with telegram_id {user_data.telegram_id} already exists (IntegrityError)")
+        logger.info(f"User {user_data.telegram_id} already exists")
         return get_user_by_telegram_id(db, user_data.telegram_id)
     except Exception as e:
         db.rollback()
@@ -106,37 +98,16 @@ def make_admin(db: Session, telegram_id: int, password: str) -> Optional[User]:
         logger.error(f"Error making user {telegram_id} admin: {e}")
         return None
 
-def verify_admin_password(db: Session, telegram_id: int, password: str) -> bool:
-    """בודק סיסמת מנהל"""
-    user = get_user_by_telegram_id(db, telegram_id)
-    if not user or not user.is_admin or not user.hashed_password:
-        return False
-    
-    return verify_password(password, user.hashed_password)
-
-def get_users_count(db: Session) -> int:
-    """מחזיר את מספר המשתמשים הכולל"""
-    try:
-        return db.query(User).count()
-    except SQLAlchemyError as e:
-        logger.error(f"Error getting users count: {e}")
-        return 0
-
 # ========= TRANSACTION CRUD =========
 def create_transaction(db: Session, user_id: int, amount: float, 
                       transaction_type: str = "payment", 
                       details: Optional[Dict] = None) -> Optional[Transaction]:
     """יוצר טרנזקציה חדשה"""
     try:
-        from app.utils import generate_contract_hash
-        
-        contract_hash = generate_contract_hash(str(details) if details else "")
-        
         db_transaction = Transaction(
             user_id=user_id,
             amount=amount,
             transaction_type=transaction_type,
-            contract_hash=contract_hash,
             description=details.get('description') if details else None,
             currency=details.get('currency', 'USD') if details else 'USD'
         )
@@ -170,34 +141,16 @@ def get_stats(db: Session) -> Dict[str, Any]:
         total_users = db.query(User).count()
         total_transactions = db.query(Transaction).count()
         
-        # חישוב הכנסות רק מעסקאות שהצליחו
         revenue_result = db.query(db.func.sum(Transaction.amount)).filter(
             Transaction.status == 'completed'
         ).scalar()
         total_revenue = float(revenue_result) if revenue_result else 0.0
-        
-        pending_transactions = db.query(Transaction).filter(
-            Transaction.status == 'pending'
-        ).count()
-        
-        completed_transactions = db.query(Transaction).filter(
-            Transaction.status == 'completed'
-        ).count()
-        
-        # ממוצע עסקה
-        avg_result = db.query(db.func.avg(Transaction.amount)).filter(
-            Transaction.status == 'completed'
-        ).scalar()
-        avg_transaction = float(avg_result) if avg_result else 0.0
         
         return {
             "total_users": total_users,
             "total_transactions": total_transactions,
             "total_revenue": total_revenue,
             "active_users": db.query(User).filter(User.active_sessions > 0).count(),
-            "pending_transactions": pending_transactions,
-            "completed_transactions": completed_transactions,
-            "average_transaction": avg_transaction
         }
     except SQLAlchemyError as e:
         logger.error(f"Error getting stats: {e}")
