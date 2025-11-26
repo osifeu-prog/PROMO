@@ -17,28 +17,33 @@ from app.schemas import StatsOut
 logger = logging.getLogger("app.main")
 logging.basicConfig(level=logging.INFO)
 
-
 # ========= CONFIG =========
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "").rstrip("/")  # למשל: https://web-production-112f6.up.railway.app
 
 
-# ========= DB RESET (לשלב פיתוח) =========
+# ========= DB INIT =========
+# כאן אנחנו דואגים שהסכמה תהיה לפי ה-Models (כולל BigInteger),
+# אבל בצורה שלא מפילה את השרת אם יש בעיה בחיבור ל-DB.
 
-def reset_db() -> None:
-    """
-    Drop & recreate all tables – מתאים לשלב בו עדיין אין נתונים חשובים.
-    ברגע שתתחיל לצבור נתונים אמיתיים – מסירים את הקריאה לפונקציה הזו.
-    """
-    logger.info("Resetting database schema (drop_all + create_all)...")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+def init_db() -> None:
+    try:
+        logger.info("Dropping all tables (if exist)...")
+        Base.metadata.drop_all(bind=engine)
+    except Exception as e:
+        logger.warning("drop_all failed (ignored): %s", e)
+
+    try:
+        logger.info("Creating all tables...")
+        Base.metadata.create_all(bind=engine)
+        logger.info("DB schema initialized.")
+    except Exception as e:
+        logger.error("create_all failed: %s", e)
 
 
-# ⚠️ כרגע – מפעילים reset_db בכל סטארט.
-# כשישקיעו כבר בפועל ויהיו נתונים אמת – נוריד את השורה הזאת.
-reset_db()
+# מריצים פעם אחת בזמן עליית האפליקציה (בייבוא המודול)
+init_db()
 
 
 # ========= TELEGRAM APPLICATION =========
@@ -82,19 +87,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# דף משקיעים סטטי
+# דף המשקיעים /investors (docs/index.html)
 app.mount(
     "/investors",
     StaticFiles(directory="docs", html=True),
     name="investors",
 )
 
-# נכסים סטטיים (תמונות וכו')
-app.mount(
-    "/assets",
-    StaticFiles(directory="docs/images"),
-    name="assets",
-)
+# נכסים סטטיים (רק אם התיקייה באמת קיימת – כדי לא להפיל את השרת)
+if os.path.isdir("docs/images"):
+    app.mount(
+        "/assets",
+        StaticFiles(directory="docs/images"),
+        name="assets",
+    )
+else:
+    logger.warning("docs/images not found, skipping /assets mount")
 
 
 # ========= ROUTES =========
@@ -103,7 +111,7 @@ app.mount(
 async def telegram_webhook(request: Request):
     """
     נקודת Webhook שמטפלת בכל העדכונים מטלגרם.
-    כאן נוספו לוגים כדי שנראה בריילווי אם בכלל מגיעות בקשות.
+    נוספו לוגים כדי לראות בריילווי אם בכלל מגיעות בקשות.
     """
     raw_body = await request.body()
     logger.info("Webhook hit, raw body size=%d bytes", len(raw_body))
@@ -122,6 +130,15 @@ async def telegram_webhook(request: Request):
         return Response(status_code=500)
 
     return Response(status_code=200)
+
+
+@app.get("/")
+async def root():
+    # להפנות את מי שנכנס ישירות לדומיין לדף המשקיעים
+    return Response(
+        status_code=307,
+        headers={"Location": "/investors"},
+    )
 
 
 @app.get("/health")
