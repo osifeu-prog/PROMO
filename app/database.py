@@ -10,6 +10,8 @@ logger = logging.getLogger("app.database")
 # קבלת DATABASE_URL מהסביבה, עם ערך ברירת מחדל ל-SQLite
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./slh_bot.db")
 
+logger.info(f"🔧 Database URL: {DATABASE_URL}")
+
 # הגדרת engine עם פרמטרים מתאימים לסוג מסד הנתונים
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
@@ -52,8 +54,20 @@ def test_connection():
     try:
         with engine.connect() as conn:
             conn.execute("SELECT 1")
-        logger.info("Database connection test successful")
+        logger.info("✅ Database connection test successful")
         return True
     except Exception as e:
-        logger.error(f"Database connection test failed: {e}")
+        logger.error(f"❌ Database connection test failed: {e}")
+        return False
+
+def create_tables():
+    """
+    יצירת הטבלות במסד הנתונים
+    """
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created successfully")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Failed to create database tables: {e}")
         return False
