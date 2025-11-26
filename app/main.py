@@ -39,7 +39,7 @@ class Settings:
         self.bot_token = os.getenv("BOT_TOKEN")
         self.webhook_url = os.getenv("WEBHOOK_URL", "").rstrip("/")
         self.environment = os.getenv("ENVIRONMENT", "production")
-        self.allowed_hosts = os.getenv("ALLOWED_HOSTS", "").split(",")
+        self.allowed_hosts = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,.railway.app").split(",")
         
         if not self.bot_token:
             raise ValueError("BOT_TOKEN environment variable is required")
@@ -51,7 +51,6 @@ settings = Settings()
 def init_db() -> bool:
     """
     אתחול מסד הנתונים עם טיפול בשגיאות
-    מחזיר True אם הצליח, False אחרת
     """
     max_retries = 3
     for attempt in range(max_retries):
@@ -60,7 +59,7 @@ def init_db() -> bool:
             
             # רק בסביבת פיתוח - drop tables
             if settings.environment == "development":
-                logger.info("Development environment - dropping tables")
+                logger.info("Development environment - creating tables")
                 Base.metadata.drop_all(bind=engine)
             
             Base.metadata.create_all(bind=engine)
@@ -70,14 +69,14 @@ def init_db() -> bool:
         except Exception as e:
             logger.error(f"Database initialization failed (attempt {attempt + 1}): {e}")
             if attempt < max_retries - 1:
-                time.sleep(2)  # המתנה לפני ניסיון חוזר
+                time.sleep(2)
             else:
                 logger.critical("All database initialization attempts failed")
                 return False
     
     return False
 
-# ניסיון אתחול DB - אבל לא נעצור את האפליקציה אם זה נכשל
+# ניסיון אתחול DB
 db_init_success = init_db()
 if not db_init_success and settings.environment == "production":
     logger.warning("Continuing with failed DB initialization - some features may not work")
@@ -154,9 +153,9 @@ async def lifespan(app: FastAPI):
 # ========= FASTAPI APP =========
 
 app = FastAPI(
-    title="SLH Investor Bot & Landing",
-    description="Telegram bot and landing page for SLH investors",
-    version="0.1.0",
+    title="SLH Ecosystem API",
+    description="Backend API for SLH Ecosystem - Digital platform combining AI, Blockchain and Social Economy",
+    version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs" if settings.environment != "production" else None,
     redoc_url="/redoc" if settings.environment != "production" else None,
@@ -165,17 +164,16 @@ app = FastAPI(
 # ========= MIDDLEWARE =========
 
 # CORS middleware
-if settings.allowed_hosts and settings.allowed_hosts != [""]:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.allowed_hosts,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_hosts,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
 
 # Trusted Host middleware
-if settings.environment == "production" and settings.allowed_hosts:
+if settings.environment == "production":
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=settings.allowed_hosts,
@@ -306,7 +304,7 @@ async def health_check(db: Session = Depends(get_db)):
     health_status: Dict[str, Any] = {
         "status": "healthy",
         "timestamp": time.time(),
-        "version": "0.1.0",
+        "version": "1.0.0",
         "environment": settings.environment
     }
     
@@ -364,6 +362,20 @@ def api_stats(db: Session = Depends(get_db)):
         )
     except Exception as e:
         logger.error(f"Unexpected error in stats endpoint: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@app.get("/api/users/count")
+def get_users_count(db: Session = Depends(get_db)):
+    """מחזיר מספר המשתמשים במערכת"""
+    try:
+        count = crud.get_users_count(db)
+        return {"total_users": count}
+    except Exception as e:
+        logger.error(f"Error getting users count: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
