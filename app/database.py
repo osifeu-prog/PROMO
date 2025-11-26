@@ -1,27 +1,59 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
+from sqlalchemy.pool import StaticPool
+import logging
+
+logger = logging.getLogger("app.database")
 
 # קבלת DATABASE_URL מהסביבה, עם ערך ברירת מחדל ל-SQLite
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./slh_bot.db")
 
-# יצירת ה-engine
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-)
+# הגדרת engine עם פרמטרים מתאימים לסוג מסד הנתונים
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False  # הגדר ל-True לשלבי פיתוח כדי לראות queries
+    )
+else:
+    # עבור PostgreSQL, MySQL וכו'
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,  # בדיקת חיבור לפני שימוש
+        pool_recycle=300,    # מחזור חיבורים כל 5 דקות
+        echo=False
+    )
 
-# יצירת SessionLocal
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# בסיס עבור המודלים
 Base = declarative_base()
 
-# Dependency לקבלת session של DB
 def get_db():
+    """
+    Dependency injection עבור FastAPI routes
+    """
     db = SessionLocal()
     try:
         yield db
+    except Exception as e:
+        logger.error(f"Database session error: {e}")
+        db.rollback()
+        raise
     finally:
         db.close()
+
+def test_connection():
+    """
+    בדיקת חיבור למסד הנתונים
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        logger.info("Database connection test successful")
+        return True
+    except Exception as e:
+        logger.error(f"Database connection test failed: {e}")
+        return False
